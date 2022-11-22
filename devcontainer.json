@@ -1,0 +1,4 @@
+{
+    "name": "thesis-mnist:HPCOpenCVBoostGdb",
+    "image": "thesis:hpc_opencv_boost_gdb"
+}
