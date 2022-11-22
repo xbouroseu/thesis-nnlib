@@ -1,4 +1,0 @@
-{
-    "name": "Thesis_ContainerTest",
-    "image": "thesis:hpc_opencv_boost_gdb"
-}
