@@ -1,4 +1,4 @@
-#include <cstdio>
+s#include <cstdio>
 #include <iostream>
 #include <iomanip>
 #include <stdexcept>
