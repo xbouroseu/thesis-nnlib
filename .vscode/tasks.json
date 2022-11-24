@@ -1,0 +1,161 @@
+{
+    "version": "2.0.0",
+    "presentation": {
+        "echo": false,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true
+      },
+    "tasks": [
+        {
+            "label": "MNIST: Build debug",
+            "type": "shell",
+            "command": "nvc++",
+            "args": [
+                "-o",
+                "./bin/mnist1_noacc_d",
+                "-I/usr/local/include/opencv4",
+                "-Ilibraries",
+                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
+                "-lstdc++fs",
+                "-Mcudalib=curand",
+                "training.cpp",
+                "mnist.cpp",
+                "libraries/network.cpp",
+                "libraries/layer.cpp",
+                "libraries/ops.cpp",
+                "libraries/tensor.cpp",
+                "libraries/neural.cpp",
+                "--c++17",
+                "-w",
+                "-g",
+                "-DDEBUG"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Build for debugging."
+        },
+        {
+            "label": "MNIST: Build no accelerator",
+            "type": "shell",
+            "command": "nvc++",
+            "args": [
+                "-o",
+                "./bin/mnist1_noacc",
+                "-I/usr/local/include/opencv4",
+                "-Ilibraries",
+                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
+                "-lstdc++fs",
+                "-Mcudalib=curand",
+                "training.cpp",
+                "mnist.cpp",
+                "libraries/network.cpp",
+                "libraries/layer.cpp",
+                "libraries/ops.cpp",
+                "libraries/tensor.cpp",
+                "libraries/neural.cpp",
+                "--c++17",
+                "-w"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Build with no debug and no accelerator."
+        },
+        {
+            "label": "MNIST: Build accelerator=host",
+            "type": "shell",
+            "command": "nvc++",
+            "args": [
+                "-o",
+                "./bin/mnist1_noacc_d",
+                "-I/usr/local/include/opencv4",
+                "-Ilibraries",
+                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
+                "-lstdc++fs",
+                "-Mcudalib=curand",
+                "training.cpp",
+                "mnist.cpp",
+                "libraries/network.cpp",
+                "libraries/layer.cpp",
+                "libraries/ops.cpp",
+                "libraries/tensor.cpp",
+                "libraries/neural.cpp",
+                "--c++17",
+                "-w",
+                "-acc=host",
+                "-Minfo"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Buld with acc=host."
+        },
+        {
+            "label": "MNIST: Build accelerator=gpu",
+            "type": "shell",
+            "command": "nvc++",
+            "args": [
+                "-o",
+                "./bin/mnist1_noacc_d",
+                "-I/usr/local/include/opencv4",
+                "-Ilibraries",
+                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
+                "-lstdc++fs",
+                "-Mcudalib=curand",
+                "training.cpp",
+                "mnist.cpp",
+                "libraries/network.cpp",
+                "libraries/layer.cpp",
+                "libraries/ops.cpp",
+                "libraries/tensor.cpp",
+                "libraries/neural.cpp",
+                "--c++17",
+                "-w",
+                "-acc",
+                "-Minfo"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Build on accelerator device."
+        },
+        {
+            "type": "shell",
+            "label": "NVC++: Compile source active file",
+            "command": "nvc++",
+            "args": [
+                "-c",
+                "${file}",
+                "--c++17",
+                "-Mcudalib=curand"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "compiler: nvc++"
+        }
+    ]
+}
