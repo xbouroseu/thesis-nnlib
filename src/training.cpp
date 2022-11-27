@@ -1,4 +1,4 @@
-#include <cstdios>
+#include <cstdio>
 #include <iostream>
 #include <iomanip>
 #include <stdexcept>
@@ -12,6 +12,7 @@
 //#include <curand_kernel.h>
 //#include <math.h>
 //using namespace cv;
+#include "openacc.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -20,7 +21,6 @@
 #include <curand.h> 
 #include <string_view>
 #include <memory>
-#include "openacc.h"
 #include "neural.hpp"
 #include "mnist.hpp"
 #include "network.hpp"
@@ -53,7 +53,7 @@ constexpr auto type_name() {
 
 using namespace std;
 
-auto read_data() 
+auto read_data() {
 
     // Load the data
     cout << "Reading mnist data transformed" << endl;
@@ -76,6 +76,7 @@ auto read_data()
         
     return data_splited;
 }
+
 
 int main(int argc, char *argv[]) {
     printf("Hello World Classes training\n");

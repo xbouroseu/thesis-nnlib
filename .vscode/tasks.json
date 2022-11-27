@@ -1,11 +1,11 @@
 {
     "version": "2.0.0",
     "presentation": {
-        "echo": false,
-        "reveal": "always",
-        "focus": false,
+        "echo": true,
+        "reveal": "silent",
+        "focus": true,
         "panel": "dedicated",
-        "showReuseMessage": true
+        "showReuseMessage": false,
       },
     "tasks": [
         {
@@ -35,10 +35,7 @@
             "options": {
                 "cwd": "${fileDirname}"
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "detail": "Build for debugging."
         },
         {
@@ -66,10 +63,7 @@
             "options": {
                 "cwd": "${fileDirname}"
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "detail": "Build with no debug and no accelerator."
         },
         {
@@ -99,10 +93,7 @@
             "options": {
                 "cwd": "${fileDirname}"
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "detail": "Buld with acc=host."
         },
         {
@@ -132,10 +123,7 @@
             "options": {
                 "cwd": "${fileDirname}"
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "detail": "Build on accelerator device."
         },
         {
@@ -145,8 +133,13 @@
             "args": [
                 "-c",
                 "${file}",
+                "-o",
+                "../bin/${fileBasenameNoExtension}.o",
                 "--c++17",
-                "-Mcudalib=curand"
+                "-I/usr/local/include/opencv4",
+                "-Ilibraries",
+                "-Mcudalib=curand",
+                "-w"
             ],
             "options": {
                 "cwd": "${fileDirname}"
