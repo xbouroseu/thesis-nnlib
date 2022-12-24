@@ -2,11 +2,13 @@
     "version": "2.0.0",
     "presentation": {
         "echo": true,
-        "reveal": "silent",
-        "focus": true,
+        "reveal": "always",
+        "focus": false,
         "panel": "dedicated",
-        "showReuseMessage": false,
-      },
+        "showReuseMessage": true,
+        "clear": false,
+        "close": false
+    },
     "tasks": [
         {
             "label": "MNIST: Build debug",
@@ -35,6 +37,9 @@
             "options": {
                 "cwd": "${fileDirname}"
             },
+            "presentation": {
+                "group": "build"
+            },
             "group": "build",
             "detail": "Build for debugging."
         },
@@ -62,6 +67,9 @@
             ],
             "options": {
                 "cwd": "${fileDirname}"
+            },
+            "presentation": {
+                "group": "build"
             },
             "group": "build",
             "detail": "Build with no debug and no accelerator."
@@ -92,6 +100,9 @@
             ],
             "options": {
                 "cwd": "${fileDirname}"
+            },
+            "presentation": {
+                "group": "build"
             },
             "group": "build",
             "detail": "Buld with acc=host."
@@ -124,6 +135,9 @@
                 "cwd": "${fileDirname}"
             },
             "group": "build",
+            "presentation": {
+                "group": "build"
+            },
             "detail": "Build on accelerator device."
         },
         {
@@ -139,7 +153,6 @@
                 "-I/usr/local/include/opencv4",
                 "-Ilibraries",
                 "-Mcudalib=curand",
-                "-w"
             ],
             "options": {
                 "cwd": "${fileDirname}"
@@ -147,7 +160,14 @@
             "problemMatcher": [
                 "$gcc"
             ],
-            "group": "build",
+            "isBackground": false,
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "group": "build"
+            },
             "detail": "compiler: nvc++"
         }
     ]

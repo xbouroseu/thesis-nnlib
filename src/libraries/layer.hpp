@@ -22,54 +22,38 @@ using std::vector;
 
 namespace Neural::Layers {
 
-    ////////////////////////////// <Layer> /////////////////////////////////////////////////
+    ////////////////////////////// <Layer> //////////////////////////////////////////////////
     class Layer {
         friend class Neural::Network;
         
     protected:
         Layer() {}
-        Layer(int, string);
+        Layer(Shape4D &, int, string);
         virtual ~Layer() = default;
         
         string layerType{""}, layerOp{""};
-        
         actd activation_fn;
-        
+        Shape4D prev_shape_proto;
         int features, id;
-        
-        std::unique_ptr<t4d> input, output, output_preact, drv_error_input, drv_error_output_preact, drv_error_output;
-        std::unique_ptr<t4d> *prev_drv_error_output{nullptr};
-
         bool _acc{false};
-                
-        Shape4D input_shape, output_shape;
-        
+
         string gph();
-        // void log(string);
-        // void log_gph(string);
-        // void log_gph();
-        
-        void apply_to(Layer *);
-        void apply_to(std::unique_ptr<t4d> *);
-        double loss(string, Tensor4D<int> *);
-        
-        virtual void init_shape() = 0;
+
+        virtual t4d * forward_input(t4d &) = 0;
+        virtual t4d * forward_output(t4d &) = 0;
+        t4d * activate(t4d &);
+
+        t4d * backprop_calc_loss(string, double &, t4d &, Tensor4D<int> &);
+        t4d * backprop_delta_output(t4d &, t4d &);
+        virtual t4d * backprop_delta_prev_output(t4d &, t4d &) = 0;
+        t4d * backprop(double, t4d &, t4d &);
+        virtual void _backprop(double, t4d &, t4d &);
+
         virtual void alloc() {}
-        
-        void forward();
-        virtual void _forward() = 0;
-       
-        void backward(double);
-        
-        virtual void _backward_input() = 0;
-        
-        virtual void _backward(double) = 0;
-        
+
         static int nl;
     public:
         auto type() const { return layerType; }
-        auto get_shape() const { return output_shape; };
-        auto & get_output() { return output; };
         string get_activation_name() { return activation_fn.name(); }
         
         void set_acc(bool acc) { _acc = acc; }
@@ -85,34 +69,37 @@ namespace Neural::Layers {
     friend class Neural::Network;
     protected:
         Weighted() {}
-        Weighted(int, string);
+        Weighted(Shape4D &, int, string);
         virtual ~Weighted();
         
         Shape4D weights_shape, biases_shape;
         
-        std::unique_ptr<t4d> weights, biases, drv_error_weights, drv_error_biases;
+        std::unique_ptr<t4d> weights, biases;
 
         void alloc() override;
         
-        void _forward();
-        void _backward(double);
-                
-        virtual void _forward_weights() = 0;
-        virtual void _backward_weights() = 0;
+        t4d * forward_output(t4d &);
+        virtual t4d * _forward_output(t4d &) = 0;
+
+        void _backprop(double, t4d &, t4d &);
+        virtual t4d * backprop_delta_weights(t4d &, t4d &) = 0;
+        t4d * backprop_delta_biases(t4d &);
+
+        void update_weights(double , t4d *, t4d *);
     };
     
     class Fc: public Weighted {
     friend class Neural::Network;        
     
     protected:
-        Fc(int, string);
+        Fc(Shape4D &, int, string);
         ~Fc();
         
-        void init_shape();
-        
-        void _forward_weights();
-        void _backward_weights();
-        void _backward_input();  
+        t4d * forward_input(t4d &);
+        t4d * _forward_output(t4d &);
+
+        t4d * backprop_delta_weights(t4d &, t4d &);
+        t4d * backprop_delta_prev_output(t4d &, t4d &);  
     };
     
     class Conv: public Weighted {
@@ -120,22 +107,19 @@ namespace Neural::Layers {
     
     private:
         vector<int> stride{0,0}, filter_size{0,0}, padding{0,0,0,0}, stride_bp_weights{0,0};
-        
+        int out_height, out_width;
         string padding_type{""};
 
     protected:
         
-        Conv(int, string, vector<int>, vector<int>, string);
-        Conv(int, string, int, vector<int>, string);
-        Conv(int, string, vector<int>, int, string);
-        Conv(int, string, int, int, string);
+        Conv(Shape4D &, int, string, vector<int>, vector<int>, string);
         ~Conv();
        
-        void init_shape();
-        
-        void _forward_weights();
-        void _backward_weights();
-        void _backward_input();
+        t4d * forward_input(t4d &);
+        t4d * _forward_output(t4d &);
+
+        t4d * backprop_delta_weights(t4d &, t4d &);
+        t4d * backprop_delta_prev_output(t4d &, t4d &);  
         
         bool is_padded() { return padding[0] != 0 || padding[1] != 0 || padding[2]!=0 || padding[3]!=0; }
     };
