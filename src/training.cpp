@@ -6,12 +6,6 @@
 #include <string>
 #include <vector>
 #include <cmath>
-//#include <cuchar>
-
-//#include <random>
-//#include <curand_kernel.h>
-//#include <math.h>
-//using namespace cv;
 #include "openacc.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -21,12 +15,26 @@
 #include <curand.h> 
 #include <string_view>
 #include <memory>
-#include "neural.hpp"
-#include "mnist.hpp"
+#include <unistd.h>
+#include <stdio.h>
+// #include <math.h>
+//#include <cuchar>
+//#include <random>
+//#include <curand_kernel.h>
+
 #include "network.hpp"
+#include "mnist.hpp"
 #include "tensor.hpp"
 #include "layer.hpp"
 #include "ops.hpp" 
+#include "utils.hpp"
+
+using Neural::Tensor4D;
+using Neural::Shape4D;
+using Neural::LabeledData;
+using Neural::Network;
+using namespace std;
+//using namespace cv;
 
 template <typename T> 
 constexpr auto type_name() {
@@ -51,46 +59,37 @@ constexpr auto type_name() {
     return name;
 }
 
-using namespace std;
-
-auto read_data() {
-
+vector<Neural::LabeledData<double>> read_data() {
     // Load the data
     cout << "Reading mnist data transformed" << endl;
-    Tensor4D<double>* train_img_data = read_mnist_images<double>("data/train-images-idx3-ubyte");
-    Tensor4D<int>* train_labels_data = read_mnist_labels<double>("data/train-labels-idx1-ubyte");
-    
-    auto data_splited = split_data(*train_img_data, *train_labels_data, 0.2);
-    delete train_img_data;
-    delete train_labels_data;
-    
+    Tensor4D<double> * original_data = read_mnist_images<double>("data/train-images-idx3-ubyte");
+    Tensor4D<int>* original_labels = read_mnist_labels("data/train-labels-idx1-ubyte");
+
+    vector<LabeledData<double>> train_valid_test = split_dataset(original_data, original_labels, 0.2);
+
+    delete original_data;
+    delete original_labels;
     LabeledData<double> test_data_labeled;
     
-    test_data_labeled.data = read_mnist_images<double>("data/train-images-idx3-ubyte");
-    test_data_labeled.labels = read_mnist_labels<int>("data/train-labels-idx1-ubyte");
+    test_data_labeled.data = read_mnist_images<double>("data/t10k-images-idx3-ubyte");
+    test_data_labeled.labels = read_mnist_labels("data/t10k-labels-idx1-ubyte");
 
-    
-    data_splited.push_back(test_data_labeled);
+    train_valid_test.push_back(test_data_labeled);
+    LOG("/read_data");
 
-    // TODO backprop divide by batch size, emltp? original
-        
-    return data_splited;
+    return train_valid_test;
 }
-
 
 int main(int argc, char *argv[]) {
     printf("Hello World Classes training\n");
+    printf("Current working dir: %s\n", get_current_dir_name());
+    cout << "__FILE__" << __FILE__ << endl;
+
     // cout << type_name<decltype(std::function{acc_deviceptr})>() << endl;
     // cout << type_name<decltype(std::function{Neural::deviceptr})>() << endl;
-    
+    LOG("THIS IS LOGGED");
     cout << "Neural::is_acc " << Neural::is_acc << endl;
     cout << "Neural::get_device_type() " << Neural::get_device_type() << endl;
-    
-    auto mnist_data = read_data();
-    
-    auto train_data = mnist_data[0];
-    auto valid_data = mnist_data[1];
-    auto test_data = mnist_data[2];
     
     /////////////////////////////////////////
 //     cout << "Init test_input" << endl;
@@ -168,43 +167,52 @@ int main(int argc, char *argv[]) {
     uni.reset();
     cout << "Uni.get: " << uni.get() << " | uni == nullptr: " << (uni.get()==nullptr) << endl;*/
 
-    using Neural::Network;
-    using Neural::Layers::Layer;
-    cout<< "Init network" << endl;
-    Network testnet; //destructor?
-    
-    int num_outputs = 10;
-    int num_hidden_nodes = 256;
-    int filter_size_conv1 = 5, depth_conv1 = 64, stride_conv1 = 1;
-    int filter_size_conv2 = 5, depth_conv2 = 64, stride_conv2 = 1;
-    
-    cout<< "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1 << ", " << stride_conv1 << ", \"same\")" << endl;
-    testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, "same");
-   
-    cout<< "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2 << ", " << stride_conv2 << ", \"same\")" << endl;
-    testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, "same");
-    
-    cout << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")" << endl;
-    testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
-    
-    // testnet.add_layer(new FcLayer(2, "relu"));
-    cout << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")" << endl;
-    testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
-    
-    cout << "steps = atoi(argv[1])" << endl;
-    int steps = atoi(argv[1]);
-    cout << "Steps = " << steps << endl;
 
-    cout << "batch_size = atoi(argv[2])" << endl;
-    int batch_size= atoi(argv[2]);
-    cout << "batch_size = " << batch_size << endl;
-    double learning_rate = 0.05;
-    cout << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", " << steps << ", true, " << learning_rate << ", \"CrossEntropy\")" << endl;
-    testnet.train(train_data, valid_data, batch_size, steps, true, learning_rate, "CrossEntropy");
+    vector<LabeledData<double>> mnist_data = read_data();
+    LabeledData<double> train_data = mnist_data[0];
+    LabeledData<double> valid_data = mnist_data[1];
+    LabeledData<double> test_data = mnist_data[2];
+
+    LOG("Init network");
+    Network *testnet = new Network(train_data.data->shape()); //destructor?
     
+    vector<int> filter_size_conv1 = {5, 5}, filter_size_conv2 = {5,5}, stride_conv1 = {1,1}, stride_conv2 = {1,1};
+    int depth_conv1 = 64, depth_conv2 = 64, num_hidden_nodes = 256, num_outputs = 10;
+
+    LOG("testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"same\")");
+    testnet->add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, "same");
+   
+    LOG("testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"same\")");
+    testnet->add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, "same");
+    
+    LOG("testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")");
+    testnet->add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
+    
+    LOG("testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")");
+    testnet->add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
+    
+    LOG("steps = atoi(argv[1])");
+    int steps = atoi(argv[1]);
+    LOG("Steps = " << steps);
+
+    LOG("batch_size = atoi(argv[2])");
+    int batch_size= atoi(argv[2]);
+    LOG("batch_size = " << batch_size);
+    double learning_rate = 0.05;
+    
+    LOG("testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", " << steps << ", true, " << learning_rate << ", \"CrossEntropy\")");
+    testnet->train(train_data, valid_data, batch_size, steps, true, learning_rate, "CrossEntropy");
+    
+    delete train_data.data;
+    delete train_data.labels;
+    delete valid_data.data;
+    delete valid_data.labels;
+    delete test_data.data;
+    delete test_data.labels;
     // delete ltest_data;
     // delete ltest_labels;
     // delete[] test_input;
     // delete[] test_labels;
+    delete testnet;
     return 0;
 }

@@ -1,5 +1,5 @@
 #include "tensor.hpp"
-#include "neural.hpp"
+#include "utils.hpp"
 #include <vector>
 #include <string>
 #include <iostream>
@@ -8,6 +8,8 @@
 #include "openacc.h"
 
 using namespace std;
+using Neural::Shape4D;
+using Neural::Tensor4D;
 
 Shape4D::Shape4D() {}
 
@@ -74,21 +76,8 @@ Shape4D Shape4D::flat(int dim) const {
     return retsh;
 }
 
-//TODO more constructors with vector? etc..
-template<class T> Tensor4D<T>::Tensor4D(T* cdata, Shape4D cshape) : _shape(cshape) {
-    this->reserve();
-    
-    for(int i = 0; i < size(); i++) {
-        _data[i] = cdata[i];
-    }
-    
-    //TODO neural is present? on _data? too? deep copy on gpu?
-}
-
-template<class T> Tensor4D<T>::Tensor4D(T* cdata, int a, int b, int c, int d) : Tensor4D(cdata, Shape4D(a,b,c,d)) {}
-
 template<class T> Tensor4D<T>::Tensor4D(Shape4D cshape) :_shape(cshape) {
-    LOG("<Tensor4D(" << cshape.to_string() << ", " << __alloc__ << ", " << __acc__ << ")>");
+    LOG("<Tensor4D(" << cshape.to_string());
     
     this->reserve();
         

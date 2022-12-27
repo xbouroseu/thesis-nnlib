@@ -39,14 +39,4 @@ namespace Neural {
     
     bool is_present(void *, std::size_t);
     bool is_present(const void *, std::size_t);
-    
-    //forward declarations
-    class Network;
-    
-    namespace Layers {
-        class Layer;
-        class Weighted;
-        class Fc;
-        class Conv;
-    }
 };

@@ -1,12 +1,11 @@
 #pragma once
-#include "neural.hpp"
-#include "tensor.hpp"
 #include <vector>
 #include <string>
 #include <memory>
 #include <iostream>
 
-using Neural::Layers::Layer;
+#include "tensor.hpp"
+#include "layer.hpp"
 
 //TODO weights is Network property?
 //TODO layer::forward is variadic?
@@ -15,23 +14,47 @@ using Neural::Layers::Layer;
 namespace Neural {
     class Network {
     private:    
-        std::vector<Layer *> layers;
-        
+        std::vector<Neural::Layers::Layer *> layers;
+        Neural::Shape4D input_shape_proto;
         bool _debug{false}, _acc{false};
         
     public:
-        Network();
+        Network(Neural::Shape4D);
         ~Network();
-                
+
         template<class L, class ... Args>
         void add_layer(Args ...args) {
             LOG("Network::add_layer");
-            L *newl = new L(args...);
-                
+            Neural::Layers::Layer *newl;
+            Neural::Shape4D prev_sh;          
+            
+            if(layers.size()==0) {
+                prev_sh = input_shape_proto;
+            }
+            else {
+                prev_sh = layers[layers.size()-1]->get_output_shape_proto();
+            }
+            
+            newl = new L(prev_sh, args...);
+            layers.push_back(newl);
+        }
+
+        void add_layer_fc() {
+            LOG("Network::add_layer");
+            Neural::Layers::Layer *newl;
+            Neural::Shape4D prev_sh;
+
+            if(layers.size()==0) {
+                prev_sh = input_shape_proto;
+            }
+            else {
+                prev_sh = layers[layers.size()-1]->get_output_shape_proto();
+            }
+            
+            newl = new Neural::Layers::Fc(prev_sh, 3, "relu"); 
             layers.push_back(newl);
         }
         
-        void attach_input(std::unique_ptr<Tensor4D<double>> *);
         void set_debug(bool);
         void set_acc(bool);
         void alloc();

@@ -1,67 +1,73 @@
 #pragma once
-#include "neural.hpp"
-#include "tensor.hpp"
 #include <string>
 #include <vector>
 #include <iostream>
+#include "tensor.hpp"
+#include "utils.hpp"
+
+#if defined(_DEBUG_OP) && !defined(_OPENACC)
+#define SAFEDATA
+#endif
 
 constexpr int DEBUG__ = 1;
 
 void tparallel_conv5(double *conv_input, double *conv_filters, double *conv_output, int batch_size, int in_channels, int in_height, int in_width, int out_channels , int out_height, int out_width, int filter_size, int stride, bool debug);
 
-template<class T> void acc_copy(const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_add(Tensor4D<T> *, const Tensor4D<T> &);
-template<class T> void acc_val(Tensor4D<T> *, T );
-template<class T> void acc_zeros(Tensor4D<T> *);
-template<class T> void acc_mltp(Tensor4D<T> *, T );
-template<class T> void acc_accumulate(const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_rng(Tensor4D<T> *, T );
-template<class T> void acc_flip_spatial(Tensor4D<T> *);
-template<class T> void acc_matrix_multiply(const Tensor4D<T> &, const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_convolution2D(const Tensor4D<T> &, const Tensor4D<T> &, Tensor4D<T> *, const std::vector<int> &);
-template<class T> void acc_relu(const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_relu_backprop(const Tensor4D<T> &, const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_sigmoid(const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_sigmoid_backprop(const Tensor4D<T> &, const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_softmax(const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_softmax_backprop(const Tensor4D<T> &, const Tensor4D<T> &, Tensor4D<T> *);
-template<class T> void acc_pad2D_inner(const Tensor4D<T> &, Tensor4D<T> *, int , int , int , int , int , int );
-template<class T> void acc_pad2D(const Tensor4D<T> &, Tensor4D<T> *, int , int , int , int );
-template<class T> Tensor4D<T>* acc_padded2D_inner(const Tensor4D<T> &, int , int , int , int , int , int );
-template<class T> void acc_rev_pad2D(const Tensor4D<T> &, Tensor4D<T> *, int , int , int , int );
-template<class T> void acc_normalize_img(Tensor4D<T> *);
+template<class T> void acc_copy(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_add(Neural::Tensor4D<T> *, const Neural::Tensor4D<T> &);
+template<class T> void acc_val(Neural::Tensor4D<T> *, T );
+template<class T> void acc_zeros(Neural::Tensor4D<T> *);
+template<class T> void acc_mltp(Neural::Tensor4D<T> *, T );
+template<class T> void acc_accumulate(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_rng(Neural::Tensor4D<T> *, T );
+template<class T> void acc_flip_spatial(Neural::Tensor4D<T> *);
+template<class T> void acc_matrix_multiply(const Neural::Tensor4D<T> &, const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_convolution2D(const Neural::Tensor4D<T> &, const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, const std::vector<int> &);
+template<class T> void acc_relu(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_relu_backprop(const Neural::Tensor4D<T> &, const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_sigmoid(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_sigmoid_backprop(const Neural::Tensor4D<T> &, const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_softmax(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_softmax_backprop(const Neural::Tensor4D<T> &, const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+template<class T> void acc_pad2D_inner(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int , int , int , int , int , int );
+template<class T> void acc_pad2D(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int , int , int , int );
+template<class T> Neural::Tensor4D<T>* acc_padded2D_inner(const Neural::Tensor4D<T> &, int , int , int , int , int , int );
+template<class T> void acc_rev_pad2D(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int , int , int , int );
+template<class T> void acc_normalize_img(Neural::Tensor4D<T> *);
 
-namespace Neural::Activations {
-    
-    template<class T>
-    class Base {
-        std::string _name;
-        void (*_fn)(const Tensor4D<T> &, Tensor4D<T> *);
-        void (*_backfn)(const Tensor4D<T> &, const Tensor4D<T> &, Tensor4D<T> *);
+namespace Neural {
+    namespace Activations {
         
-        public:
-            Base() {}
-            Base(std::string name, void (*fn)(const Tensor4D<T> &, Tensor4D<T> *), void (*backfn)(const Tensor4D<T> &, const Tensor4D<T> &, Tensor4D<T> *)  ) : _name(name), _fn(fn), _backfn(backfn) {}
+        template<class T>
+        class Base {
+            std::string _name;
+            void (*_fn)(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
+            void (*_backfn)(const Neural::Tensor4D<T> &, const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
             
-            std::string name() { return _name; }
-            
-            void apply(const Tensor4D<T> &input, Tensor4D<T> *output) {
-                _fn(input, output);
-            }
-            
-            void backward(const Tensor4D<T> &drv_error_output, const Tensor4D<T> &output, Tensor4D<T> *drv_error_output_preact) {
-                _backfn(drv_error_output, output, drv_error_output_preact);
-            }
-    };
-    
-    const Base<double> Relu("relu", acc_relu<double>, acc_relu_backprop<double>);
-    const Base<double> Softmax("softmax", acc_softmax<double>, acc_softmax_backprop<double>);
-    const Base<double> Sigmoid("sigmoid", acc_sigmoid<double>, acc_sigmoid_backprop<double>);
+            public:
+                Base() {}
+                Base(std::string name, void (*fn)(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *), void (*backfn)(const Neural::Tensor4D<T> &, const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *)  ) : _name(name), _fn(fn), _backfn(backfn) {}
+                
+                std::string name() { return _name; }
+                
+                void apply(const Neural::Tensor4D<T> &input, Neural::Tensor4D<T> *output) {
+                    _fn(input, output);
+                }
+                
+                void backward(const Neural::Tensor4D<T> &drv_error_output, const Neural::Tensor4D<T> &output, Neural::Tensor4D<T> *drv_error_output_preact) {
+                    _backfn(drv_error_output, output, drv_error_output_preact);
+                }
+        };
+        
+        const Base<double> Relu("relu", acc_relu<double>, acc_relu_backprop<double>);
+        const Base<double> Softmax("softmax", acc_softmax<double>, acc_softmax_backprop<double>);
+        const Base<double> Sigmoid("sigmoid", acc_sigmoid<double>, acc_sigmoid_backprop<double>);
+    }
 }
 
 template<class T>
-void acc_make_batch(const Tensor4D<T> &inputs, Tensor4D<T> *batch, int batch_start) {
-    const Shape4D &in_shape = inputs.shape(), &batch_shape = batch->shape();
+void acc_make_batch(const Neural::Tensor4D<T> &inputs, Neural::Tensor4D<T> *batch, int batch_start) {
+    const Neural::Shape4D &in_shape = inputs.shape(), &batch_shape = batch->shape();
     int batch_size = batch_shape[0], num_inputs = in_shape[0], input_size = in_shape[1]*in_shape[2]*in_shape[3], batch_input_size = batch_shape[1]*batch_shape[2]*batch_shape[3];
     
     if((batch_size > num_inputs) || input_size!=batch_input_size) {
@@ -85,8 +91,8 @@ void acc_make_batch(const Tensor4D<T> &inputs, Tensor4D<T> *batch, int batch_sta
 }
 
 template<class T, int DIM>
-void AddVecDim(Tensor4D<T> *A, const Tensor4D<T> &B) {
-    Shape4D a_shape = A->shape(), b_shape = B.shape();
+void AddVecDim(Neural::Tensor4D<T> *A, const Neural::Tensor4D<T> &B) {
+    Neural::Shape4D a_shape = A->shape(), b_shape = B.shape();
     
     LOG("a_shape: " << a_shape.to_string());
     LOG("b_shape: " << b_shape.to_string());
@@ -152,8 +158,8 @@ void AddVecDim(Tensor4D<T> *A, const Tensor4D<T> &B) {
 }
 
 template<class T, int DIM1, int DIM2>
-Tensor4D<T>* acc_transposed(const Tensor4D<T> &input) {
-    Shape4D a_shape = input.shape(), t_shape = Shape4D(a_shape);
+Neural::Tensor4D<T>* acc_transposed(const Neural::Tensor4D<T> &input) {
+    Neural::Shape4D a_shape = input.shape(), t_shape = Neural::Shape4D(a_shape);
     
     static_assert(DIM2>DIM1);
     static_assert(DIM1>=0 && DIM1 < 4);
@@ -168,7 +174,7 @@ Tensor4D<T>* acc_transposed(const Tensor4D<T> &input) {
     at_mlt[DIM2] = a_mlt[DIM1];
     at_mlt[DIM1] = a_mlt[DIM2];
     
-    Tensor4D<T> *ret = new Tensor4D<T>(t_shape);
+    Neural::Tensor4D<T> *ret = new Neural::Tensor4D<T>(t_shape);
     ret->create_acc();
     
     const T* a_data = input.data();

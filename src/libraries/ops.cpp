@@ -6,14 +6,15 @@
 #include <type_traits>
 #include <cassert>
 #include "openacc.h"
-#include "neural.hpp"
+#include "utils.hpp"
 #include "ops.hpp"
 #include "tensor.hpp"
 #include <iomanip>
 
-#if defined(_DEBUG_OP) && !defined(_OPENACC)
-#define SAFEDATA
-#endif
+using Neural::Tensor4D;
+using Neural::Shape4D;
+
+typedef Tensor4D<double> t4d;
 
 using namespace std;
 
@@ -98,7 +99,7 @@ void generateNormal(T *data,  int n,  T mean,  T stddev) {
 
 
 template<class T>
-void acc_val_i(Tensor4D<T> *A) {
+void acc_val_i(Neural::Tensor4D<T> *A) {
     int asize = A->size();
     
     T * a_data = A->data();
