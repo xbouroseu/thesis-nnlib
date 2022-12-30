@@ -128,7 +128,7 @@ t4d * Layer::activate(t4d &output_preact) {
     activation_fn.apply(output_preact, output);
 
     LOG("[Output]");
-    output->print();
+    XLOG(output->print());
 
     return output;
 }
@@ -154,19 +154,21 @@ t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output
     int B = output_shape[0], M = output_shape[1];
 
     LOG("[Output]");
-    output.print();
+    XLOG(output.print());
 
     LOG("[Labels]");
-    labels_batch.print();
+    XLOG(labels_batch.print());
 
     int lsize = output_shape.size();
 
     loss_value = 0.0f;
+    VLOG("loss_value = " << loss_value);
 
     if ((loss_fn == "CrossEntropy") && (activation_type == "softmax")) {
         #pragma acc parallel loop reduction(+:loss_value) collapse(2) present(labels_data[:lsize], output_data[:lsize])
         for (int i = 0; i < B; i++) {
             for (int j = 0; j < M; j++) {
+                VLOG("Loss value += " << (labels_data[i * M + j]) << " * log(" << output_data[i * M + j] << ") [" << log(output_data[i * M + j]) << "] = " << (labels_data[i * M + j]) * log(output_data[i * M + j]));
                 loss_value += (labels_data[i * M + j]) * log(output_data[i * M + j]);
             }
         }
@@ -182,11 +184,12 @@ t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output
         }
     }
 
+    VLOG("loss_value = " << loss_value);
     return drv_error_output_preact;
 }
 
 t4d * Layer::backprop_delta_output(t4d &drv_error_output, t4d &output) {
-    LOG(gph() + "backward: learning_rate = " + to_string(learning_rate));
+    LOG(gph() + "backprop_delta_output");
 
     Shape4D output_shape = output.shape();
     assert_shape(output_shape, output_shape_proto);
@@ -194,10 +197,10 @@ t4d * Layer::backprop_delta_output(t4d &drv_error_output, t4d &output) {
 
     // If not set from somewhere else calc here drv_error_output_preact
     LOG("[drv_error_output]");
-    drv_error_output.print();
+    XLOG(drv_error_output.print());
 
     LOG("[output]");
-    output.print();
+    XLOG(output.print());
 
     LOG("t4d * drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
     t4d * drv_error_output_preact = new t4d(output_shape);
@@ -206,7 +209,7 @@ t4d * Layer::backprop_delta_output(t4d &drv_error_output, t4d &output) {
     activation_fn.backward(drv_error_output, output, drv_error_output_preact);
 
     LOG("[drv_error_output_preact]");
-    drv_error_output_preact->print();
+    XLOG(drv_error_output_preact->print());
 
     return drv_error_output_preact;
 }
@@ -228,7 +231,7 @@ void Weighted::init() {
     acc_rng(weights.get(), (double)0.1f);
 
     LOG("weights init print");
-    weights->print();
+    XLOG(weights->print());
 
     cout << "biases = make_unique<t4d>(" << biases_shape.to_string() << ", 1, << " + _acc << "), size: " << biases_shape.size() << endl;
     biases = make_unique<t4d>(biases_shape);
@@ -237,7 +240,7 @@ void Weighted::init() {
     acc_zeros(biases.get());
 
     LOG("biases init print");
-    biases->print();
+    XLOG(biases->print());
 }
 
 t4d * Weighted::backprop(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
@@ -270,18 +273,17 @@ t4d * Weighted::backprop_delta_biases(t4d &drv_error_output_preact) {
     assert_shape(output_shape, output_shape_proto);
 
     LOG("drv_error_biases = make_unique<t4d>(" + biases_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-    t4d * drv_error_biases = new t4d(biases_shape);
-    
+    t4d * drv_error_biases = new t4d(biases_shape); 
     drv_error_biases->create_acc();
 
     LOG("[drv_error_output_preact]");
-    drv_error_output_preact.print();
+    XLOG(drv_error_output_preact.print());
 
     LOG("acc_accumulate(*drv_error_output_preact, drv_error_biases)");
     acc_accumulate(drv_error_output_preact, drv_error_biases);
 
     LOG("[drv_error_biases]");
-    drv_error_biases->print();
+    XLOG(drv_error_biases->print());
 
     double mltp = (1.0f) / drv_error_output_preact.shape()[0];
     acc_mltp(drv_error_biases, mltp);
@@ -340,7 +342,7 @@ t4d * Fc::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
     LOG("unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(*input.get()))");
     unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(input));
     LOG("[input_tranposed]");
-    input_tranposed->print();
+    XLOG(input_tranposed->print());
     
     t4d * drv_error_weights = new t4d(weights->shape());
     drv_error_weights->create_acc();
@@ -363,7 +365,7 @@ t4d * Fc::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input) {
     unique_ptr<t4d> weights_transposed(acc_transposed<double, 0, 1>(*weights.get()));
     
     LOG("[weights_transposed]");
-    weights_transposed->print();
+    XLOG(weights_transposed->print());
 
     unique_ptr<t4d> drv_error_input = make_unique<t4d>(input_shape);
     drv_error_input->create_acc();
@@ -484,31 +486,31 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
     unique_ptr<t4d> drv_error_output_preact_transposed_flipped_padded(acc_transposed<double, 0, 1>(drv_error_output_preact));
     
     LOG("[drv_error_output_preact_transposed]");
-    drv_error_output_preact_transposed_flipped_padded->print();
+    XLOG(drv_error_output_preact_transposed_flipped_padded->print());
 
     LOG("acc_flip_spatial(drv_error_output_preact_transposed_flipped_padded.get())");
     acc_flip_spatial(drv_error_output_preact_transposed_flipped_padded.get());
 
     LOG("[drv_error_output_preact_transposed_flipped]");
-    drv_error_output_preact_transposed_flipped_padded->print();
+    XLOG(drv_error_output_preact_transposed_flipped_padded->print());
 
     LOG("drv_error_output_preact_transposed_flipped_padded.reset(acc_padded2D_inner(*drv_error_output_preact_transposed_flipped_padded.get(), rev_padding_h - rev_padding_h/2,  rev_padding_w - rev_padding_w/2, rev_padding_h/2,  rev_padding_w/2, 0, 0))");
     drv_error_output_preact_transposed_flipped_padded.reset(acc_padded2D_inner(*drv_error_output_preact_transposed_flipped_padded.get(), rev_padding_h - rev_padding_h / 2, rev_padding_w - rev_padding_w / 2, rev_padding_h / 2, rev_padding_w / 2, 0, 0));
     
     LOG("[drv_error_output_preact_transposed_flipped_padded]");
-    drv_error_output_preact_transposed_flipped_padded->print();
+    XLOG(drv_error_output_preact_transposed_flipped_padded->print());
 
     LOG("unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(*input))");
     unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(input));
     
     LOG("[input_transposed]");
-    input_transposed_flipped->print();
+    XLOG(input_transposed_flipped->print());
 
     LOG("acc_flip_spatial(input_transposed_flipped)");
     acc_flip_spatial(input_transposed_flipped.get());
 
     LOG("[input_transposed_flipped]");
-    input_transposed_flipped->print();
+    XLOG(input_transposed_flipped->print());
 
     t4d * drv_error_weights = new t4d(weights->shape());
     drv_error_weights->create_acc();

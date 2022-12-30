@@ -59,7 +59,7 @@ namespace Neural {
         void set_acc(bool);
         void alloc();
         void forward();
-        void train(const LabeledData<double> &, const LabeledData<double> &, int, int, bool, double, std::string);
+        void train(const LabeledData<double> &, const LabeledData<double> &, int, bool, double, std::string);
     };
 }
 

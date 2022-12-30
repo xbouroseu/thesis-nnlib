@@ -191,3 +191,6 @@ namespace Neural {
         Tensor4D<int> *labels;
     };
 };
+
+template<class T> std::ostream & operator<<(std::ostream & pstream, Tensor4D<T> tens);
+std::ostream & operator<<(std::ostream & pstream, Shape4D shap);

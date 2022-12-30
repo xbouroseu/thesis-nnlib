@@ -49,118 +49,127 @@ Network::~Network() {
 //     }
 // }
 
-void Network::train(const LabeledData<double> &train_data, const LabeledData<double> &valid_data, int batch_size, int epochs, bool acc, double learning_rate, string loss_fn) {
-    cout << "Network::train | batch_size: " << batch_size << " | epochs: " << epochs << endl;
+void Network::train(const LabeledData<double> &train_data, const LabeledData<double> &valid_data, int batch_size, bool acc, double learning_rate, string loss_fn) {
+    cout << "Network::train | batch_size: " << batch_size << endl;
     
-    auto train_dataset = train_data.data;
-    auto train_labels = train_data.labels;
+    Tensor4D<double> * train_dataset = train_data.data, *valid_dataset = valid_data.data;
+    Tensor4D<int> * train_labels = train_data.labels, *valid_labels = valid_data.labels;
     
     Shape4D train_shape = train_dataset->shape(), labels_shape = train_labels->shape();
     cout  << "Train shape: " << train_shape.to_string() << endl;
     
-    int num_samples = train_shape[0], train_size = train_dataset->size();
-    int num_outputs = labels_shape[1];
+    int train_num_samples = train_shape[0], train_size = train_dataset->size();
+    int train_num_outputs = labels_shape[1];
     
     assert( (train_shape[1] == input_shape_proto[1]) && (train_shape[2] == input_shape_proto[2]) && (train_shape[3] == input_shape_proto[3]));
-    assert(num_samples == labels_shape[0]);
-    assert(batch_size <= num_samples);
+    assert(train_num_samples == labels_shape[0]);
+    assert(batch_size <= train_num_samples);
     
     unique_ptr<t4d> batch_data;
     unique_ptr<Tensor4D<int>> batch_labels;
     
     /////////////////////////
     {    
-        Shape4D bshape(batch_size, train_shape[1], train_shape[2], train_shape[3]);
-        cout << "bshape = " << bshape.to_string() << endl;
-        batch_data = make_unique<t4d>(bshape);
+        Shape4D batch_data_shape(batch_size, train_shape[1], train_shape[2], train_shape[3]);
+        cout << "batch_data_shape = " << batch_data_shape.to_string() << endl;
+        batch_data = make_unique<t4d>(batch_data_shape);
         batch_data->create_acc();
     }
     
     {
-        Shape4D lbl_bshape(batch_size, num_outputs, 1, 1);
-        cout << "lbl_bshape = " << lbl_bshape.to_string() << endl;
-        batch_labels = make_unique<Tensor4D<int>>(lbl_bshape);
+        Shape4D batch_labels_shape(batch_size, labels_shape[1], labels_shape[2], labels_shape[3]);
+        cout << "batch_labels_shape = " << batch_labels_shape.to_string() << endl;
+        batch_labels = make_unique<Tensor4D<int>>(batch_labels_shape);
         batch_data->create_acc();
     }
     //////////////////////////
-        
-    int iters = num_samples/batch_size;
+    
+    cout << "Calling Layer::init" << endl;
+    for(auto it: layers) {
+        it->init();
+    }
+    int iters = train_num_samples/batch_size;
     int batch_start;
     double duration;
     clock_t start = clock();
     
-    {
-        printf("Iterations : %d\n", iters);
-        for(int e = 0; e < epochs; e++) {
-            double epoch_loss = 0.0f;
+    printf("Epoch iterations : %d\n", iters);
+    int e = 1;
+    double epoch_loss;
+    do {
+        epoch_loss = 0.0f;
+        cout << "Epoch: " << e;
+        // for(int iter = 0; iter < iters; iter++) {
+        //     batch_start = (iter*batch_size)%(train_num_samples-batch_size+1);
+                    
+        //     // printf(">> Step %d, batch_start: %d<< \n",iter, batch_start);
             
-            for(int i = 0; i < iters; i++) {
-                batch_start = (i*batch_size)%(num_samples-batch_size+1);
-                        
-                printf(">>>>>>> Step %d, batch_start: %d<<<<<<<< \n",i, batch_start);
-                
-                acc_make_batch<double>(*train_dataset, batch_data.get(),  batch_start); 
-                LOG("[batch_data]");
-                batch_data->print();
-                
-                acc_normalize_img(batch_data.get());
-                LOG("[batch_data normalized]");
-                batch_data->print();           
-                
-                acc_make_batch<int>(*train_labels, batch_labels.get(), batch_start);
-                
-                LOG("[batch_labels]");
-                batch_labels->print();
-                
-                LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FORWARD " << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-                
-                vector<t4d *> inputs, outputs;
-                inputs.push_back(layers[0]->forward_input(*batch_data.get()));
-                outputs.push_back(layers[0]->forward_output(*(inputs[0])));
-
-                for(int i = 1; i < layers.size(); i++) {
-                    inputs.push_back(layers[i]->forward_input(*(outputs[i-1])));
-                    outputs.push_back(layers[i]->forward_output(*(inputs[i])));
-                }                
-
-                LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /FORWARD " << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-                
-                LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-                
-                LOG("Calculating loss at output");
-                double loss;
-                
-                unique_ptr<t4d> output_preact_loss(layers.back()->backprop_calc_loss(loss_fn, loss, *outputs.back(), *batch_labels.get()));
-                delete outputs.back();
-                epoch_loss += loss;
-                cout << "Loss = " << loss << endl;
-                unique_ptr<t4d> prev_output_loss(layers.back()->backprop(learning_rate, *output_preact_loss.get(), *inputs.back()));
-                delete inputs.back();
-
-                LOG("Backpropagating");
-                int j = 0;
-
-                for(int i = layers.size()-2; i>=0; i--) {
-                    output_preact_loss.reset(layers[i]->backprop_delta_output(*prev_output_loss.get(), *(outputs[i])));
-                    delete outputs[i];
-                    prev_output_loss.reset(layers[i]->backprop(learning_rate, *output_preact_loss.get(), *inputs[i]));
-                    delete inputs[i];
-                }
-
-                
-                LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /BACKWARD "  << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-            }
+        //     acc_make_batch<double>(*train_dataset, batch_data.get(),  batch_start); 
+        //     LOG("[batch_data]");
+        //     XLOG(batch_data->print());
             
-            //calculate loss over validation set
-            //if it stops dropping then stop
-            //TODO split dataset in validation, test, train
+        //     acc_normalize_img(batch_data.get());
+        //     LOG("[batch_data normalized]");
+        //     XLOG(batch_data->print());           
             
-        }
+        //     acc_make_batch<int>(*train_labels, batch_labels.get(), batch_start);
+            
+        //     LOG("[batch_labels]");
+        //     XLOG(batch_labels->print());
+        //     LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FORWARD " << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+            
+        //     vector<t4d *> inputs, outputs;
+        //     t4d *prev_output = batch_data.get();
+
+        //     LOG("for(int i = 0; i < layers.size(); i++)");
+        //     for(int i = 0; i < layers.size(); i++) {
+        //         inputs.push_back(layers[i]->forward_input(*prev_output));
+        //         t4d *output_preact = layers[i]->forward_output(*(inputs[i]));
+        //         t4d *output = layers[i]->activate(*output_preact);
+        //         outputs.push_back(output);
+        //         delete output_preact;
+        //         prev_output = outputs[i];
+        //     }                
+
+        //     LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /FORWARD " << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+            
+        //     LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+            
+        //     LOG("Calculating loss at output");
+        //     double loss;
+        //     XLOG(outputs.back()->print());
+        //     unique_ptr<t4d> output_preact_loss(layers.back()->backprop_calc_loss(loss_fn, loss, *outputs.back(), *batch_labels.get()));
+        //     delete outputs.back();
+        //     epoch_loss += loss;
+
+        //     unique_ptr<t4d> prev_output_loss(layers.back()->backprop(learning_rate, *output_preact_loss.get(), *inputs.back()));
+        //     delete inputs.back();
+
+        //     LOG("Backpropagating");
+        //     int j = 0;
+
+        //     for(int i = layers.size()-2; i>=0; i--) {
+        //         output_preact_loss.reset(layers[i]->backprop_delta_output(*prev_output_loss.get(), *(outputs[i])));
+        //         delete outputs[i];
+        //         prev_output_loss.reset(layers[i]->backprop(learning_rate, *output_preact_loss.get(), *inputs[i]));
+        //         delete inputs[i];
+        //     }
+
+        //     LOG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /BACKWARD "  << i <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        // }
+        cout << " loss: " << epoch_loss << endl;
+        
+        // //calculate loss over validation set
+        // //if it stops dropping then stop
+        // //TODO split dataset in validation, test, train
+        e++;
     }
+    while( epoch_loss > 0.05f );
     
     duration = dur(start);
     cout << "Train duration: " <<  std::setprecision(15) << std::fixed << duration << endl;
-    cout << "Step duration: " <<  std::setprecision(15) << std::fixed << duration/iters << endl;
+    cout << "Epoch duration: " <<  std::setprecision(15) << std::fixed << duration/e << endl;
+    cout << "Step duration: " <<  std::setprecision(15) << std::fixed << duration/(iters * e) << endl;
     clock_t now = clock();
     duration = now - start;
     cout << "Time now: " << clock() << " | start: " << start << " | duration: " << duration << " | ms: " << (duration/CLOCKS_PER_SEC) << std::setprecision(15) << std::fixed << endl;

@@ -4,144 +4,14 @@
         "echo": true,
         "reveal": "always",
         "focus": false,
-        "panel": "dedicated",
+        "panel": "shared",
         "showReuseMessage": true,
         "clear": false,
         "close": false
     },
     "tasks": [
         {
-            "label": "MNIST: Build debug",
-            "type": "shell",
-            "command": "nvc++",
-            "args": [
-                "-o",
-                "./bin/mnist1_noacc_d",
-                "-I/usr/local/include/opencv4",
-                "-Ilibraries",
-                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
-                "-lstdc++fs",
-                "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
-                "--c++17",
-                "-w",
-                "-g",
-                "-DDEBUG"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "presentation": {
-                "group": "build"
-            },
-            "group": "build",
-            "detail": "Build for debugging."
-        },
-        {
-            "label": "MNIST: Build no accelerator",
-            "type": "shell",
-            "command": "nvc++",
-            "args": [
-                "-o",
-                "./bin/mnist1_noacc",
-                "-I/usr/local/include/opencv4",
-                "-Ilibraries",
-                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
-                "-lstdc++fs",
-                "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
-                "--c++17",
-                "-w"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "presentation": {
-                "group": "build"
-            },
-            "group": "build",
-            "detail": "Build with no debug and no accelerator."
-        },
-        {
-            "label": "MNIST: Build accelerator=host",
-            "type": "shell",
-            "command": "nvc++",
-            "args": [
-                "-o",
-                "./bin/mnist1_noacc_d",
-                "-I/usr/local/include/opencv4",
-                "-Ilibraries",
-                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
-                "-lstdc++fs",
-                "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
-                "--c++17",
-                "-w",
-                "-acc=host",
-                "-Minfo"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "presentation": {
-                "group": "build"
-            },
-            "group": "build",
-            "detail": "Buld with acc=host."
-        },
-        {
-            "label": "MNIST: Build accelerator=gpu",
-            "type": "shell",
-            "command": "nvc++",
-            "args": [
-                "-o",
-                "./bin/mnist1_noacc_d",
-                "-I/usr/local/include/opencv4",
-                "-Ilibraries",
-                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
-                "-lstdc++fs",
-                "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
-                "--c++17",
-                "-w",
-                "-acc",
-                "-Minfo"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "group": "build",
-            "presentation": {
-                "group": "build"
-            },
-            "detail": "Build on accelerator device."
-        },
-        {
-            "label": "MNIST: LINKED Build accelerator=gpu",
+            "label": "MNIST: LINKED Build",
             "type": "shell",
             "command": "nvc++",
             "args": [
@@ -160,7 +30,7 @@
                 "../bin/tensor.o",
                 "../bin/utils.o",
                 "../bin/ops.o",
-                "-acc",
+                "${input:acc_level}",
                 "-Minfo"
             ],
             "options": {
@@ -185,7 +55,9 @@
                 "-I/usr/local/include/opencv4",
                 "-Ilibraries",
                 "-Mcudalib=curand",
-                "-D_DEBUG"
+                "${input:acc_level}",
+                "${input:log_level}",
+                "${input:misc_input}"
             ],
             "options": {
                 "cwd": "${fileDirname}"
@@ -201,6 +73,36 @@
                 "group": "build"
             },
             "detail": "compiler: nvc++"
+        },
+    ],
+    "inputs": [
+        {
+            "type": "pickString",
+            "id": "acc_level",
+            "description": "choose your accelerator level",
+            "options": [
+                "",
+                "-acc=host",
+                "-acc"
+            ],
+            "default": ""
+        },
+        {
+            "type": "pickString",
+            "id": "log_level",
+            "description": "choose your log level",
+            "options": [
+                "",
+                "-D_DEBUG",
+                "-D_DEBUG_VERBOSE"
+            ],
+            "default": ""
+        },
+        {
+            "type": "promptString",
+            "id": "misc_input",
+            "description": "provide any additional args",
+            "default": ""
         }
     ]
 }

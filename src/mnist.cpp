@@ -24,7 +24,6 @@ Tensor4D<T> * read_mnist_images(string full_path) {
         return ((int)c1 << 24) + ((int)c2 << 16) + ((int)c3 << 8) + c4;
     };
 
-
     ifstream file(full_path, ios::binary);
 
     if(file.is_open()) {
@@ -58,7 +57,6 @@ Tensor4D<T> * read_mnist_images(string full_path) {
         throw runtime_error("Cannot open file `" + full_path + "`!");
     }
 }
-
 
 template Tensor4D<double> *read_mnist_images(string full_path);
 template Tensor4D<float> *read_mnist_images(string full_path);

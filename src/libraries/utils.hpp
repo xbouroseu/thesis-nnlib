@@ -19,8 +19,19 @@ constexpr int IS_OPENACC = 0;
 #ifdef _DEBUG
 #include <iostream>
 #define LOG(m)  std::cout << m << std::endl;
+#define XLOG(m) m
 #else
 #define LOG(m)  
+#define XLOG(m) 
+#endif
+
+#ifdef _DEBUG_VERBOSE
+#include <iostream>
+#define VLOG(m)  std::cout << m << std::endl;
+#define XVLOG(m) m
+#else
+#define VLOG(m)  
+#define XVLOG(m) 
 #endif
 
 #include <ctime>

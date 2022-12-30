@@ -80,6 +80,74 @@ vector<Neural::LabeledData<double>> read_data() {
     return train_valid_test;
 }
 
+Tensor4D<double> * read_sample_data(string data_path) {
+    ifstream file_data(data_path);
+
+    if(file_data.is_open()) {
+        int magic_n, ns, sh, sw;
+
+        file_data >> magic_n >> ns >> sh >> sw;
+
+        if(magic_n != 3344) {
+            throw runtime_error("Invalid SAMPLE data file!");
+        }
+
+        printf("Magic number: %d, num_samples: %d, sample_height: %d, sample_width: %d\n", magic_n, ns, sh, sw);
+        
+        Tensor4D<double> * _dataset = new Tensor4D<double>(ns, 1, sh, sw);
+
+        for(int i = 0; i < _dataset->size(); i++) {
+            file_data >> _dataset->iat(i);
+        }
+
+        file_data.close();
+
+        return _dataset;
+    }
+    else {
+        throw runtime_error("Unable to open file " + data_path + "!");
+    }
+
+}
+
+
+Tensor4D<int> * read_sample_labels(string data_path) {
+    ifstream file_data(data_path);
+
+    if(file_data.is_open()) {
+        int magic_n, ns;
+
+        file_data >> magic_n >> ns;
+
+        if(magic_n != 3345) {
+            throw runtime_error("Invalid SAMPLE labels file!");
+        }
+
+        printf("Magic number: %d, num_labels\n", magic_n, ns);
+        
+        Tensor4D<int> * _dataset = new Tensor4D<int>(ns, 10, 1, 1);
+
+        for(int i = 0; i < ns; i++) {
+            int lblfull;
+            file_data >> lblfull;
+            for(int m = 0; m < 10; m++) {
+                int lbl1hot=0;
+                if(m == lblfull) {
+                    lbl1hot = 1;
+                }
+                _dataset->iat(i*10 + m) = lbl1hot;
+            }
+        }
+
+        file_data.close();
+
+        return _dataset;
+    }
+    else {
+        throw runtime_error("Unable to open file " + data_path + "!");
+    }
+}
+
 int main(int argc, char *argv[]) {
     printf("Hello World Classes training\n");
     printf("Current working dir: %s\n", get_current_dir_name());
@@ -91,128 +159,52 @@ int main(int argc, char *argv[]) {
     cout << "Neural::is_acc " << Neural::is_acc << endl;
     cout << "Neural::get_device_type() " << Neural::get_device_type() << endl;
     
-    /////////////////////////////////////////
-//     cout << "Init test_input" << endl;
-//     
-//     int num_s = 5, num_ch = 3, num_r = 3, num_c = 3;
-//     double *test_input = new double[num_s*num_ch*num_r*num_c];
-//     
-//     for(int s = 0; s < num_s; s++) {
-//         for(int ch=0; ch<num_ch; ch++) {
-//             for(int i = 0; i < num_r; i++) {
-//                 for(int j = 0; j < num_c; j++) {
-//                     int val = s*num_ch*num_r*num_c + ch*num_r*num_c + i*num_c + j + 1;
-//                     int vl = 31*val;
-//                     int vll = vl%255;
-//                     test_input[s*num_ch*num_r*num_c + ch*num_r*num_c + i*num_c + j] = vll;            
-//                 }
-//             }
-// 
-//         }
-//     }
-//     
-//     vector<vector<cv::Mat>> mdata;
-//     for(int s = 0; s < num_s; s++) {
-//         vector<cv::Mat> sdata;
-//         for(int ch=0; ch<num_ch; ch++) {
-//             sdata.push_back(cv::Mat(num_r, num_c, CV_64FC1, test_input+s*num_ch*num_r*num_c + ch*num_r*num_c));
-//         }
-//         mdata.push_back(sdata);
-//     }
-//     for(int i = 0; i < mdata.size(); i++) {
-//         for(int s = 0; s < mdata[i].size(); s++) {
-//             cout << mdata[i][s] << endl;
-//         }
-//     }
-//     
-//     int num_out = 5;
-//     
-//     int *test_labels = new int[num_s*num_out];
-//     
-//     cout << "Init test labels" << endl;
-//     for(int s = 0; s < num_s; s++) {
-//         int lbl = s%num_out;
-//         
-//         for(int ot = 0; ot < num_out; ot++) {
-//             if(lbl == ot) {
-//                 test_labels[s*num_out + ot] = 1;
-//             }
-//             else {
-//                 test_labels[s*num_out + ot] = 0;
-//             }
-//         }
-//     }
-// 
-//     cout << "Convert to cv::Mat" << endl;
-//     cv::Mat mdata_labels(num_s, num_out, CV_32S, test_labels);
-//     
-//     cout << "Print labels" << endl;
-//     cout << mdata_labels << endl;
-//         
-//     ////////////////////////////////////////////
-//     
-//     cout << "Init ltest_data" << endl;
-//     Tensor4D<double> * ltest_data = new Tensor4D<double>(test_input, Shape4D(num_s, num_ch, num_r, num_c));
-//     ltest_data->print();
-//     
-//     cout << "Init ltest_labels" << endl;
-//     Tensor4D<int> * ltest_labels = new Tensor4D<int>(test_labels, Shape4D(num_s, num_out));
-//     ltest_labels->print();    
-//     
-    // int bs = 2;
-    
-/*    terminal.integrated.defaultLocation
-    cout << "Uni.get: " << uni.get() << " | uni == nullptr: " << (uni.get()==nullptr) << endl;
-    
-    uni.reset();
-    cout << "Uni.get: " << uni.get() << " | uni == nullptr: " << (uni.get()==nullptr) << endl;*/
+    unique_ptr<Tensor4D<double>> sample_data(read_sample_data("data/sample_data.txt"));
+    unique_ptr<Tensor4D<int>> sample_labels(read_sample_labels("data/sample_labels.txt"));
 
+    LabeledData<double> sample_labeled_data;
+    sample_labeled_data.data = sample_data.get();
+    sample_labeled_data.labels = sample_labels.get();
+
+    // sample_data->print();
+    // sample_labels->print();
+
+    // vector<int> filter_size_conv1 = {3, 3}, filter_size_conv2 = {3,3}, stride_conv1 = {1,1}, stride_conv2 = {1,1};
+    // int depth_conv1 = 4, depth_conv2 = 8, num_hidden_nodes = 4, num_outputs = 10;
 
     vector<LabeledData<double>> mnist_data = read_data();
-    LabeledData<double> train_data = mnist_data[0];
-    LabeledData<double> valid_data = mnist_data[1];
-    LabeledData<double> test_data = mnist_data[2];
-
-    LOG("Init network");
-    Network *testnet = new Network(train_data.data->shape()); //destructor?
+    Network testnet(mnist_data[0].data->shape()); //destructor?
     
     vector<int> filter_size_conv1 = {5, 5}, filter_size_conv2 = {5,5}, stride_conv1 = {1,1}, stride_conv2 = {1,1};
     int depth_conv1 = 64, depth_conv2 = 64, num_hidden_nodes = 256, num_outputs = 10;
 
     LOG("testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"same\")");
-    testnet->add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, "same");
+    testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, "same");
    
     LOG("testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"same\")");
-    testnet->add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, "same");
+    testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, "same");
     
     LOG("testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")");
-    testnet->add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
+    testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
     
     LOG("testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")");
-    testnet->add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
-    
-    LOG("steps = atoi(argv[1])");
-    int steps = atoi(argv[1]);
-    LOG("Steps = " << steps);
+    testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
-    LOG("batch_size = atoi(argv[2])");
-    int batch_size= atoi(argv[2]);
+    LOG("batch_size = atoi(argv[1])");
+    int batch_size= atoi(argv[1]);
     LOG("batch_size = " << batch_size);
+
     double learning_rate = 0.05;
     
-    LOG("testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", " << steps << ", true, " << learning_rate << ", \"CrossEntropy\")");
-    testnet->train(train_data, valid_data, batch_size, steps, true, learning_rate, "CrossEntropy");
+    LOG("testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")");
+    testnet.train(mnist_data[0], mnist_data[1], batch_size, true, learning_rate, "CrossEntropy");
     
-    delete train_data.data;
-    delete train_data.labels;
-    delete valid_data.data;
-    delete valid_data.labels;
-    delete test_data.data;
-    delete test_data.labels;
-    // delete ltest_data;
-    // delete ltest_labels;
-    // delete[] test_input;
-    // delete[] test_labels;
-    delete testnet;
+    // delete train_data.data;
+    // delete train_data.labels;
+    // delete valid_data.data;
+    // delete valid_data.labels;
+    // delete test_data.data;
+    // delete test_data.labels;
+
     return 0;
 }
