@@ -1,144 +1,109 @@
 #pragma once
-#include "neural.hpp"
 #include "tensor.hpp"
 #include "ops.hpp"
 #include <memory>
 #include <string>
 #include <iostream>
 #include <sstream>
+
 //TODO: require prev_l on ctor? eliminate init_params
-//TODO: :overload Tensor4D operations? +-,
+//TODO: :overload Neural::Tensor4D operations? +-,
 //TODO: pooling layer, dropout layer, batch normalization layer, deconvolution layer
 //TODO: weight layers, non-weight layers OR weight_size = 0
 //TODO: require prev layer on constructor, set weight sizes
 //TODO: test batch now vs batch normal vs online (duration, accuracy)
 // TODO: Weights class including biases, dimensionality
-
-
-typedef Tensor4D<double> t4d;
-typedef Neural::Activations::Base<double> actd;
-using std::string;
-using std::vector;
-
 namespace Neural::Layers {
 
-    ////////////////////////////// <Layer> /////////////////////////////////////////////////
-    class Layer {
-        friend class Neural::Network;
-        
-    protected:
-        Layer() {}
-        Layer(int, string);
-        virtual ~Layer() = default;
-        
-        string layerType{""}, layerOp{""};
-        
-        actd activation_fn;
-        
+    ////////////////////////////// <Layer> //////////////////////////////////////////////////
+    class Layer {        
+    protected:        
+        std::string layerType{""}, layerOp{""};
+        Neural::Activations::Base<double> activation_fn;
+        Neural::Shape4D prev_shape_proto, input_shape_proto, output_shape_proto;
         int features, id;
-        
-        std::unique_ptr<t4d> input, output, output_preact, drv_error_input, drv_error_output_preact, drv_error_output;
-        std::unique_ptr<t4d> *prev_drv_error_output{nullptr};
-
         bool _acc{false};
-                
-        Shape4D input_shape, output_shape;
-        
-        string gph();
-        // void log(string);
-        // void log_gph(string);
-        // void log_gph();
-        
-        void apply_to(Layer *);
-        void apply_to(std::unique_ptr<t4d> *);
-        double loss(string, Tensor4D<int> *);
-        
-        virtual void init_shape() = 0;
-        virtual void alloc() {}
-        
-        void forward();
-        virtual void _forward() = 0;
-       
-        void backward(double);
-        
-        virtual void _backward_input() = 0;
-        
-        virtual void _backward(double) = 0;
-        
+
+        std::string gph();
+
         static int nl;
     public:
+        Layer() {}
+        Layer(Neural::Shape4D &, int, std::string);
+        virtual ~Layer() = default;
+
         auto type() const { return layerType; }
-        auto get_shape() const { return output_shape; };
-        auto & get_output() { return output; };
-        string get_activation_name() { return activation_fn.name(); }
-        
+        std::string get_activation_name() { return activation_fn.name(); }
         void set_acc(bool acc) { _acc = acc; }
+        Shape4D get_output_shape_proto() { return output_shape_proto; }
+        virtual void init() = 0;
+
+        virtual Neural::Tensor4D<double> * forward_input(Neural::Tensor4D<double> &) = 0;
+        virtual Neural::Tensor4D<double> * forward_output(Neural::Tensor4D<double> &) = 0;
+        Neural::Tensor4D<double> * activate(Neural::Tensor4D<double> &);
+
+        Neural::Tensor4D<double> * backprop_calc_loss(std::string, double &, Neural::Tensor4D<double> &, Neural::Tensor4D<int> &);
+        Neural::Tensor4D<double> * backprop_delta_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        virtual Neural::Tensor4D<double> * backprop_delta_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
+        virtual Neural::Tensor4D<double> * backprop(double, Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
     };
     
     class BatchNormal : public Layer {
     };
     ////////////////////////////// </Layer> //////////////////////////////////////////////////
     
-    
     ////////////////////////////// <Weighted> ////////////////////////////////////////////////
     class Weighted : public Layer {
-    friend class Neural::Network;
     protected:
         Weighted() {}
-        Weighted(int, string);
+        Weighted(Neural::Shape4D &, int, std::string);
         virtual ~Weighted();
         
-        Shape4D weights_shape, biases_shape;
+        Neural::Shape4D weights_shape, biases_shape;
         
-        std::unique_ptr<t4d> weights, biases, drv_error_weights, drv_error_biases;
+        std::unique_ptr<Neural::Tensor4D<double>> weights, biases;
 
-        void alloc() override;
+        void init();
         
-        void _forward();
-        void _backward(double);
-                
-        virtual void _forward_weights() = 0;
-        virtual void _backward_weights() = 0;
+        Neural::Tensor4D<double> * backprop(double, Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        virtual Neural::Tensor4D<double> * backprop_delta_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
+        Neural::Tensor4D<double> * backprop_delta_biases(Neural::Tensor4D<double> &);
     };
     
     class Fc: public Weighted {
-    friend class Neural::Network;        
     
-    protected:
-        Fc(int, string);
+    public:
+        Fc(Neural::Shape4D &, int, std::string);
         ~Fc();
         
-        void init_shape();
-        
-        void _forward_weights();
-        void _backward_weights();
-        void _backward_input();  
+        Neural::Tensor4D<double> * forward_input(Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * forward_output(Neural::Tensor4D<double> &);
+
+        Neural::Tensor4D<double> * backprop_delta_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * backprop_delta_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);  
     };
     
     class Conv: public Weighted {
-    friend class Neural::Network;
     
     private:
-        vector<int> stride{0,0}, filter_size{0,0}, padding{0,0,0,0}, stride_bp_weights{0,0};
-        
-        string padding_type{""};
+        std::vector<int> stride{0,0}, filter_size{0,0}, padding{0,0,0,0}, stride_bp_weights{0,0};
+        int out_height, out_width;
+        std::string padding_type{""};
 
     protected:
-        
-        Conv(int, string, vector<int>, vector<int>, string);
-        Conv(int, string, int, vector<int>, string);
-        Conv(int, string, vector<int>, int, string);
-        Conv(int, string, int, int, string);
-        ~Conv();
-       
-        void init_shape();
-        
-        void _forward_weights();
-        void _backward_weights();
-        void _backward_input();
+        Neural::Tensor4D<double> * forward_input(Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * forward_output(Neural::Tensor4D<double> &);
+
+        Neural::Tensor4D<double> * backprop_delta_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * backprop_delta_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);  
         
         bool is_padded() { return padding[0] != 0 || padding[1] != 0 || padding[2]!=0 || padding[3]!=0; }
+
+    public:
+        Conv(Neural::Shape4D &, int, std::string, std::vector<int>, std::vector<int>, std::string);
+        ~Conv();
     };
+       
     ////////////////////////////// </Weighted> /////////////////////////////////////////////////
 
 }

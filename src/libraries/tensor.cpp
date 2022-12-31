@@ -1,5 +1,5 @@
 #include "tensor.hpp"
-#include "neural.hpp"
+#include "utils.hpp"
 #include <vector>
 #include <string>
 #include <iostream>
@@ -8,6 +8,8 @@
 #include "openacc.h"
 
 using namespace std;
+using Neural::Shape4D;
+using Neural::Tensor4D;
 
 Shape4D::Shape4D() {}
 
@@ -51,6 +53,10 @@ string Shape4D::to_string() {
     return "Shape4D(" + std::to_string(dims[0]) + "," + std::to_string(dims[1]) + "," + std::to_string(dims[2]) + "," + std::to_string(dims[3]) + ")";
 }
 
+std::ostream & operator<<(std::ostream & pstream, Shape4D shap) {
+    return pstream << shap.to_string();
+}
+
 Shape4D Shape4D::flat(int dim) const {
     int _size = size();
     Shape4D retsh;
@@ -74,21 +80,8 @@ Shape4D Shape4D::flat(int dim) const {
     return retsh;
 }
 
-//TODO more constructors with vector? etc..
-template<class T> Tensor4D<T>::Tensor4D(T* cdata, Shape4D cshape) : _shape(cshape) {
-    this->reserve();
-    
-    for(int i = 0; i < size(); i++) {
-        _data[i] = cdata[i];
-    }
-    
-    //TODO neural is present? on _data? too? deep copy on gpu?
-}
-
-template<class T> Tensor4D<T>::Tensor4D(T* cdata, int a, int b, int c, int d) : Tensor4D(cdata, Shape4D(a,b,c,d)) {}
-
 template<class T> Tensor4D<T>::Tensor4D(Shape4D cshape) :_shape(cshape) {
-    LOG("<Tensor4D(" << cshape.to_string() << ", " << __alloc__ << ", " << __acc__ << ")>");
+    LOG("<Tensor4D(" << cshape.to_string());
     
     this->reserve();
         
@@ -208,8 +201,97 @@ void print_line(int __C, int __W) {
     }
 }
 
+template<class G>
+void get_line(ostream & pstream, int __C, int __W) {
+    int __z;
+    
+    if constexpr(is_same<G, int>::value) {
+        __z = 6;
+    }
+    else {
+        __z = 12;
+    }
+    
+    for(int c = 0; c < __C; c++) {
+        pstream << "-";
+        for(int w = 0; w < __W; w++) {
+            for(int z = 0; z < __z; z++) {
+                pstream << "-";
+            }
+        }
+        pstream << "  ";
+    }
+}
+
+template<class T>
+ostream & Tensor4D<T>::put(ostream & pstream) {
+    pstream << "Tensor4D::print()" << endl;
+    this->update_self_acc();
+    
+    pstream << "Shape: " << _shape << endl;
+    
+    int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
+    
+    pstream << "Size: " << B << " x " << C << " x " <<  H << " x " <<  W << " = " <<  _shape.size() << endl;
+    
+    for(int b = 0; b < B; b++) {
+        pstream << endl;
+        print_line<T>(C, W);
+        pstream << endl;
+        for(int h = 0; h < H; h++) {
+            for(int c = 0; c < C; c++) {
+                printf("|");
+                for(int w = 0; w < W; w++) {
+                    if constexpr(is_same<T, int>::value) {
+                        printf("%5d|", _data[ ( (b* C + c)* H +  h) * W + w]);
+                    }
+                    else {
+                        printf("%+011.5f|", _data[ ( (b* C + c)* H +  h) * W + w]);
+                    }
+                }
+                printf("  ");
+            }
+            printf("\n");
+        }
+        print_line<T>(C, W);
+        printf("\n");
+    }
+    printf("\n");
+}
+
 template<class T> void Tensor4D<T>::print() {
-#ifdef _DEBUG
+    // LOG("Tensor4D::print()");
+    // this->update_self_acc();
+    
+    // LOG("Shape: " << shape().to_string());
+    
+    // int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
+    
+    // printf("Size: %d x %d x %d x %d = %d\n", B, C, H, W, _shape.size());
+    
+    // for(int b = 0; b < B; b++) {
+    //     printf("\n");
+    //     print_line<T>(C, W);
+    //     printf("\n");
+    //     for(int h = 0; h < H; h++) {
+    //         for(int c = 0; c < C; c++) {
+    //             printf("|");
+    //             for(int w = 0; w < W; w++) {
+    //                 if constexpr(is_same<T, int>::value) {
+    //                     printf("%5d|", _data[ ( (b* C + c)* H +  h) * W + w]);
+    //                 }
+    //                 else {
+    //                     printf("%+011.5f|", _data[ ( (b* C + c)* H +  h) * W + w]);
+    //                 }
+    //             }
+    //             printf("  ");
+    //         }
+    //         printf("\n");
+    //     }
+    //     print_line<T>(C, W);
+    //     printf("\n");
+    // }
+    // printf("\n");
     LOG("Tensor4D::print()");
     this->update_self_acc();
     
@@ -242,7 +324,6 @@ template<class T> void Tensor4D<T>::print() {
         printf("\n");
     }
     printf("\n");
-#endif
 }
 
 template class Tensor4D<double>;

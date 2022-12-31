@@ -1,142 +1,46 @@
 {
     "version": "2.0.0",
     "presentation": {
-        "echo": false,
+        "echo": true,
         "reveal": "always",
         "focus": false,
-        "panel": "dedicated",
-        "showReuseMessage": true
-      },
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false,
+        "close": false
+    },
     "tasks": [
         {
-            "label": "MNIST: Build debug",
+            "label": "MNIST: LINKED Build",
             "type": "shell",
             "command": "nvc++",
             "args": [
                 "-o",
-                "./bin/mnist1_noacc_d",
+                "../bin/mnist1_noacc_d_linked",
                 "-I/usr/local/include/opencv4",
                 "-Ilibraries",
                 "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
                 "-lstdc++fs",
-                "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
                 "--c++17",
-                "-w",
-                "-g",
-                "-DDEBUG"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "detail": "Build for debugging."
-        },
-        {
-            "label": "MNIST: Build no accelerator",
-            "type": "shell",
-            "command": "nvc++",
-            "args": [
-                "-o",
-                "./bin/mnist1_noacc",
-                "-I/usr/local/include/opencv4",
-                "-Ilibraries",
-                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
-                "-lstdc++fs",
                 "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
-                "--c++17",
-                "-w"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "detail": "Build with no debug and no accelerator."
-        },
-        {
-            "label": "MNIST: Build accelerator=host",
-            "type": "shell",
-            "command": "nvc++",
-            "args": [
-                "-o",
-                "./bin/mnist1_noacc_d",
-                "-I/usr/local/include/opencv4",
-                "-Ilibraries",
-                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
-                "-lstdc++fs",
-                "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
-                "--c++17",
-                "-w",
-                "-acc=host",
+                "../bin/training.o",
+                "../bin/mnist.o",
+                "../bin/layer.o",
+                "../bin/network.o",
+                "../bin/tensor.o",
+                "../bin/utils.o",
+                "../bin/ops.o",
+                "${input:acc_level}",
                 "-Minfo"
             ],
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "${workspaceFolder}/src"
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
+            "group": "build",
+            "presentation": {
+                "group": "build"
             },
-            "detail": "Buld with acc=host."
-        },
-        {
-            "label": "MNIST: Build accelerator=gpu",
-            "type": "shell",
-            "command": "nvc++",
-            "args": [
-                "-o",
-                "./bin/mnist1_noacc_d",
-                "-I/usr/local/include/opencv4",
-                "-Ilibraries",
-                "-Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc",
-                "-lstdc++fs",
-                "-Mcudalib=curand",
-                "training.cpp",
-                "mnist.cpp",
-                "libraries/network.cpp",
-                "libraries/layer.cpp",
-                "libraries/ops.cpp",
-                "libraries/tensor.cpp",
-                "libraries/neural.cpp",
-                "--c++17",
-                "-w",
-                "-acc",
-                "-Minfo"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "detail": "Build on accelerator device."
+            "detail": "Linked Build on accelerator device."
         },
         {
             "type": "shell",
@@ -145,8 +49,15 @@
             "args": [
                 "-c",
                 "${file}",
+                "-o",
+                "${workspaceFolder}/bin/${fileBasenameNoExtension}.o",
                 "--c++17",
-                "-Mcudalib=curand"
+                "-I/usr/local/include/opencv4",
+                "-Ilibraries",
+                "-Mcudalib=curand",
+                "${input:acc_level}",
+                "${input:log_level}",
+                "${input:misc_input}"
             ],
             "options": {
                 "cwd": "${fileDirname}"
@@ -154,8 +65,44 @@
             "problemMatcher": [
                 "$gcc"
             ],
-            "group": "build",
+            "isBackground": false,
+            "group": {
+                "kind": "build",
+            },
+            "presentation": {
+                "group": "build"
+            },
             "detail": "compiler: nvc++"
+        },
+    ],
+    "inputs": [
+        {
+            "type": "pickString",
+            "id": "acc_level",
+            "description": "choose your accelerator level",
+            "options": [
+                "",
+                "-acc=host",
+                "-acc"
+            ],
+            "default": ""
+        },
+        {
+            "type": "pickString",
+            "id": "log_level",
+            "description": "choose your log level",
+            "options": [
+                "",
+                "-D_DEBUG",
+                "-D_DEBUG_VERBOSE"
+            ],
+            "default": ""
+        },
+        {
+            "type": "promptString",
+            "id": "misc_input",
+            "description": "provide any additional args",
+            "default": ""
         }
     ]
 }

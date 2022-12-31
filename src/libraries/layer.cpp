@@ -1,6 +1,3 @@
-#include "layer.hpp"
-#include "neural.hpp"
-#include "ops.hpp"
 #include <cmath>
 #include <string>
 #include <stdexcept>
@@ -8,53 +5,17 @@
 #include <sstream>
 #include <cassert>
 #include <iomanip>
+#include "layer.hpp"
+#include "utils.hpp"
+#include "ops.hpp"
+
+
+using Neural::Tensor4D;
+using Neural::Shape4D;
 
 typedef Tensor4D<double> t4d;
 
 using namespace std;
-
-void helper_CalcConvPaddingOutSize(string padding_type, int in_h, int in_w, vector<int> &filter_size, vector<int> &stride, int &out_h, int &out_w, vector<int> &padding)
-{
-    if (padding_type == "same")
-    {
-        if (stride[0] != 1 && stride[1] != 1)
-        {
-            throw(std::invalid_argument("SAME padding cannot have stride != 1"));
-        }
-
-        int padding_height = filter_size[0] - 1;
-        int padding_width = filter_size[1] - 1;
-
-        padding[0] = padding_height - padding_height / 2;
-        padding[1] = padding_height / 2;
-        padding[2] = padding_width - padding_width / 22;
-        padding[3] = padding_width / 2;
-
-        out_h = in_h;
-        out_w = in_w;
-    }
-    else if (padding_type == "valid")
-    {
-        int nom_h = in_h - filter_size[0];
-        int nom_w = in_w - filter_size[1];
-
-        if ((nom_h % stride[0]) != 0)
-        {
-            throw(std::invalid_argument("VALID padding: (input_height - filter_height) not divisible by stride."));
-        }
-
-        if ((nom_w % stride[1]) != 0)
-        {
-            throw(std::invalid_argument("VALID padding: (input_width - filter_width) not divisible by stride."));
-        }
-        out_h = nom_h / stride[0] + 1;
-        out_w = nom_w / stride[1] + 1;
-    }
-    else
-    {
-        throw(std::invalid_argument("Padding type not compatible."));
-    }
-}
 
 // void helper_InnerActivate(const t4d &input, t4d* output, string activation_fn) {
 //     if(activation_fn == "relu") {
@@ -106,6 +67,10 @@ void helper_forward(void (*fcnptr)(), Args... args)
     (*fcnptr)(args);
 }
 
+void assert_shape(Shape4D actual, Shape4D proto) {
+    assert((actual[0]!=-1) && (actual[1]==proto[1]) && (actual[2]==proto[2]) && (actual[3]==proto[3]));
+}
+
 ///////////////////////////Layer//////////////////////////////////////
 /*
  *
@@ -123,7 +88,7 @@ using Neural::Layers::Weighted;
 ////////// <Layer> ////////////
 int Layer::nl = 0;
 
-Layer::Layer(Shape4D &prev_shape, int features, string afn) : features(features) {
+Layer::Layer(Shape4D &prev_shape_proto, int features, string afn) : prev_shape_proto(Shape4D(-1, prev_shape_proto[1], prev_shape_proto[2], prev_shape_proto[3])), features(features) {
     LOG("Layer::Layer");
 
     cout << "Generating layer number from: " << nl;
@@ -140,74 +105,70 @@ Layer::Layer(Shape4D &prev_shape, int features, string afn) : features(features)
     else if (afn == "sigmoid") {
         activation_fn = Neural::Activations::Sigmoid;
     }
-
-    LOG("&output = " << &output);
 }
 
-void Layer::apply_to(Layer *_pr_l) {
-    cout << gph() + "Layer::apply_to(Layer *)" << endl;
-
-    LOG("this->prev_drv_error_output = " << &_pr_l->drv_error_output);
-    this->prev_drv_error_output = &_pr_l->drv_error_output;
-
-    LOG("this->prev_output = " << &_pr_l->output);
-    this->prev_output = &_pr_l->output;
-
-    LOG("this->prev_shape = " << _pr_l->output_shape.to_string());
-    this->prev_shape = _pr_l->output_shape;
-
-    this->init_shape();
+string Layer::gph() {
+    string ret("[Layer " + to_string(id) + "] [" + layerType + "]");
+    return ret;
 }
 
-void Layer::apply_to(unique_ptr<t4d> *_pr_o) {
-    cout << gph() + "Layer::apply_to(unique_ptr<t4d> *)" << endl;
 
-    LOG("this->prev_output = " << &_pr_o);
-    this->prev_output = _pr_o;
+t4d * Layer::activate(t4d &output_preact) {
+    LOG("Activation: " + activation_fn.name());
 
-    LOG("this->prev_shape = " << (*_pr_o)->shape().to_string());
-    this->prev_shape = (*_pr_o)->shape();
+    Shape4D output_shape = output_preact.shape();
 
-    this->init_shape();
+    assert_shape(output_shape, output_shape_proto);
+
+    LOG("output = make_unique<t4d>(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
+    t4d * output = new t4d(output_shape);
+    output->create_acc();
+
+    // helper_InnerActivate(*output_preact, output, activation_fn);
+    activation_fn.apply(output_preact, output);
+
+    LOG("[Output]");
+    XLOG(output->print());
+
+    return output;
 }
 
-double Layer::loss(string loss_fn, Tensor4D<int> *labels_batch) {
-    LOG("Layer::loss");
+t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output, Tensor4D<int> &labels_batch) {
+    LOG("Layer::backprop_calc_loss");
+    
     LOG("activation_type: " << this->get_activation_name());
     string activation_type = this->get_activation_name();
 
-    assert(output.get() != nullptr);
-    assert(labels_batch != nullptr);
-    assert(labels_batch->shape() == output_shape);
-    assert(drv_error_output_preact.get() == nullptr);
+    Shape4D output_shape = output.shape();
+    assert_shape(output_shape, output_shape_proto);
+    assert(labels_batch.shape() == output_shape);
 
-    LOG("drv_error_output_preact = make_unique<t4d>(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-    drv_error_output_preact = make_unique<t4d>(output_shape);
-    if (_acc) {
-        drv_error_output_preact->create_acc();
-    }
+    LOG("drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
+    t4d *drv_error_output_preact = new t4d(output_shape);
+    drv_error_output_preact->create_acc();
 
     LOG("Layer::loss getting data pointers");
-    double *output_data = output->data(), *drv_error_output_preact_data = drv_error_output_preact->data();
-    int *labels_data = labels_batch->data();
+    double *output_data = output.data(), *drv_error_output_preact_data = drv_error_output_preact->data();
+    int *labels_data = labels_batch.data();
 
     int B = output_shape[0], M = output_shape[1];
 
     LOG("[Output]");
-    output->print();
+    XLOG(output.print());
 
     LOG("[Labels]");
-    labels_batch->print();
+    XLOG(labels_batch.print());
 
     int lsize = output_shape.size();
 
-    double loss_value = 0.0f;
+    loss_value = 0.0f;
+    VLOG("loss_value = " << loss_value);
 
     if ((loss_fn == "CrossEntropy") && (activation_type == "softmax")) {
-
         #pragma acc parallel loop reduction(+:loss_value) collapse(2) present(labels_data[:lsize], output_data[:lsize])
         for (int i = 0; i < B; i++) {
             for (int j = 0; j < M; j++) {
+                VLOG("Loss value += " << (labels_data[i * M + j]) << " * log(" << output_data[i * M + j] << ") [" << log(output_data[i * M + j]) << "] = " << (labels_data[i * M + j]) * log(output_data[i * M + j]));
                 loss_value += (labels_data[i * M + j]) * log(output_data[i * M + j]);
             }
         }
@@ -223,228 +184,111 @@ double Layer::loss(string loss_fn, Tensor4D<int> *labels_batch) {
         }
     }
 
-    return loss_value;
+    VLOG("loss_value = " << loss_value);
+    return drv_error_output_preact;
 }
 
-string Layer::gph() {
-    string ret("[Layer " + to_string(id) + "] [" + layerType + "]");
-    return ret;
-}
+t4d * Layer::backprop_delta_output(t4d &drv_error_output, t4d &output) {
+    LOG(gph() + "backprop_delta_output");
 
-void Layer::forward(t4d &prev_output, bool back_keep) {
-
-    LOG(gph() + "Forward");
-    LOG("Prev Output");
-    prev_output.print();
-
-    LOG("prev_shape = prev_output.shape()");
-
-    this->init_shape(prev_output.shape());
-    // TODO try wrapper variadic? also member?
-
-    LOG("input = make_unique<t4d>(" + input_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-    input = make_unique<t4d>(input_shape);
-    
-    if (_acc) {
-        input->create_acc();
-    }
-
-    LOG("output_preact = make_unique<t4d>(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-    output_preact = make_unique<t4d>(output_shape);
-    
-    if (_acc) {
-        output_preact->create_acc();
-    }
-
-    _forward();
-    LOG("[Output preact]");
-    output_preact->print();
-
-    LOG("Activation: " + activation_fn.name());
-
-    LOG("output = make_unique<t4d>(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-    output = make_unique<t4d>(output_shape);
-    
-    if (_acc) {
-        output->create_acc();
-    }
-
-    // helper_InnerActivate(*output_preact, output, activation_fn);
-    activation_fn.apply(*output_preact.get(), output.get());
-
-    LOG("[Output]");
-    output->print();
-
-    // Free op data[not needed]
-    LOG("output_preact.reset()");
-    output_preact.reset();
-
-    if(!back_keep) {
-        output.reset();
-        input.reset();
-    }
-}
-
-void Layer::backward(double learning_rate) {
-    LOG(gph() + "backward: learning_rate = " + to_string(learning_rate));
+    Shape4D output_shape = output.shape();
+    assert_shape(output_shape, output_shape_proto);
+    assert(drv_error_output.shape() == output_shape);
 
     // If not set from somewhere else calc here drv_error_output_preact
-    if (drv_error_output_preact.get() == nullptr && drv_error_output.get() != nullptr) {
-        LOG("[drv_error_output]");
-        drv_error_output->print();
+    LOG("[drv_error_output]");
+    XLOG(drv_error_output.print());
 
-        LOG("[output]");
-        output->print();
+    LOG("[output]");
+    XLOG(output.print());
 
-        LOG("drv_error_output_preact = make_unique<t4d>(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-        drv_error_output_preact = make_unique<t4d>(output_shape);
-        if (_acc) {
-            drv_error_output_preact->create_acc();
-        }
+    LOG("t4d * drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")");
+    t4d * drv_error_output_preact = new t4d(output_shape);
+    drv_error_output_preact->create_acc();
 
-        activation_fn.backward(*drv_error_output.get(), *output.get(), drv_error_output_preact.get());
+    activation_fn.backward(drv_error_output, output, drv_error_output_preact);
 
-        LOG("[drv_error_output_preact]");
-        drv_error_output_preact->print();
+    LOG("[drv_error_output_preact]");
+    XLOG(drv_error_output_preact->print());
 
-        LOG("drv_error_output.reset()");
-        drv_error_output.reset();
+    return drv_error_output_preact;
+}
 
-        LOG("output.reset()");
-        output.reset();
-    }
-
-    if (prev_drv_error_output != nullptr) {
-        LOG("drv_error_input = make_unique<t4d>(" + input_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-        drv_error_input = make_unique<t4d>(input_shape);
-        if (_acc) {
-            drv_error_input->create_acc();
-        }
-
-        LOG("prev_drv_error_output = make_unique<t4d>(" + (*prev_output)->shape().to_string() + ", 1, " + to_string(_acc) + ")");
-        *prev_drv_error_output = make_unique<t4d>((*prev_output)->shape());
-        if (_acc) {
-            (*prev_drv_error_output)->create_acc();
-        }
-
-        _backward_input();
-
-        LOG("[drv_error_input]");
-        drv_error_input->print();
-
-        LOG("drv_error_input.reset()");
-        drv_error_input.reset();
-    }
-
-    _backward(learning_rate);
-
-    LOG("input.reset()");
-    input.reset();
-
-    LOG("drv_error_output_preact.reset()");
-    drv_error_output_preact.reset();
+Weighted::Weighted(Shape4D &prev_shape_proto, int features, string afn) : Layer(prev_shape_proto, features, afn) {
 }
 
 Weighted::~Weighted() {
     cout << gph() + "destructor" << endl;
 }
 
-void Weighted::alloc() {
+void Weighted::init() {
     cout << gph() + "alloc" << endl;
 
     cout << "weights = make_unique<t4d>(" << weights_shape.to_string() << ", 1, << " + _acc << "), size: " << weights_shape.size() << endl;
     weights = make_unique<t4d>(weights_shape);
-    if (_acc) {
-        weights->create_acc();
-    }
-
+    weights->create_acc();
     LOG("weights rng");
     acc_rng(weights.get(), (double)0.1f);
 
     LOG("weights init print");
-    weights->print();
+    XLOG(weights->print());
 
     cout << "biases = make_unique<t4d>(" << biases_shape.to_string() << ", 1, << " + _acc << "), size: " << biases_shape.size() << endl;
     biases = make_unique<t4d>(biases_shape);
-    if (_acc) {
-        biases->create_acc();
-    }
-
+    biases->create_acc();
     LOG("acc_zeros(biases)");
     acc_zeros(biases.get());
 
     LOG("biases init print");
-    biases->print();
+    XLOG(biases->print());
 }
 
-void Weighted::_forward() {
-    LOG(gph() + "Weighted::_forward");
-    _forward_weights();
+t4d * Weighted::backprop(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
+    Shape4D output_shape = drv_error_output_preact.shape(), input_shape = input.shape();
+    assert_shape(output_shape, output_shape_proto);
+    assert_shape(input_shape, input_shape_proto);
+    unique_ptr<t4d> drv_error_weights(this->backprop_delta_weights(drv_error_output_preact, input)), drv_error_biases(this->backprop_delta_biases(drv_error_output_preact));
 
-    LOG("[Output preact pre bias]");
-    output_preact->print();
+    double mltp = -1.0f * learning_rate;
 
-    LOG("[+Bias]");
-    biases->print();
+    acc_mltp(drv_error_weights.get(), mltp);
 
-    AddVecDim<double, 1>(output_preact.get(), *biases.get());
+    LOG("acc_add(weights, *drv_error_weights)");
+    acc_add(weights.get(), *drv_error_weights.get());
+
+    LOG("acc_mltp(drv_error_biases, mltp)");
+    acc_mltp(drv_error_biases.get(), mltp);
+
+    //update
+    LOG("acc_add(biases, *drv_error_biases)");
+    acc_add(biases.get(),  *drv_error_biases.get());
+
+    t4d *prev_drv_error_output = this->backprop_delta_prev_output(drv_error_output_preact, input);
+
+    return prev_drv_error_output;
 }
 
-void Weighted::_backward(double learning_rate) {
-    LOG(gph() + "Weighted::_backward");
+t4d * Weighted::backprop_delta_biases(t4d &drv_error_output_preact) {
+    Shape4D output_shape = drv_error_output_preact.shape();
+    assert_shape(output_shape, output_shape_proto);
 
-    double mltp = -1.0f * learning_rate / this->get_shape()[0];
+    LOG("drv_error_biases = make_unique<t4d>(" + biases_shape.to_string() + ", 1, " + to_string(_acc) + ")");
+    t4d * drv_error_biases = new t4d(biases_shape); 
+    drv_error_biases->create_acc();
 
-    {
-        LOG("drv_error_weights = make_unique<t4d>(" + weights_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-        drv_error_weights = make_unique<t4d>(weights_shape);
-        if (_acc)
-        {
-            drv_error_weights->create_acc();
-        }
+    LOG("[drv_error_output_preact]");
+    XLOG(drv_error_output_preact.print());
 
-        _backward_weights();
+    LOG("acc_accumulate(*drv_error_output_preact, drv_error_biases)");
+    acc_accumulate(drv_error_output_preact, drv_error_biases);
 
-        LOG("[drv_error_weights]");
-        drv_error_weights->print();
+    LOG("[drv_error_biases]");
+    XLOG(drv_error_biases->print());
 
-        LOG("acc_mltp(drv_error_weights, mltp)");
-        acc_mltp(drv_error_weights.get(), mltp);
+    double mltp = (1.0f) / drv_error_output_preact.shape()[0];
+    acc_mltp(drv_error_biases, mltp);
 
-        LOG("acc_add(weights, *drv_error_weights)");
-        acc_add(weights.get(), *drv_error_weights.get());
-
-        LOG("drv_error_weights.reset()");
-        drv_error_weights.reset();
-    }
-
-    // backward_biases
-    {
-        LOG("drv_error_biases = make_unique<t4d>(" + biases_shape.to_string() + ", 1, " + to_string(_acc) + ")");
-        drv_error_biases = make_unique<t4d>(biases_shape);
-        if (_acc)
-        {
-            drv_error_biases->create_acc();
-        }
-
-        LOG("[drv_error_output_preact]");
-        drv_error_output_preact->print();
-
-        LOG("acc_accumulate(*drv_error_output_preact, drv_error_biases)");
-        acc_accumulate(*drv_error_output_preact.get(), drv_error_biases.get());
-
-        LOG("[drv_error_biases]");
-        drv_error_biases->print();
-
-        LOG("acc_mltp(drv_error_biases, mltp)");
-        acc_mltp(drv_error_biases.get(), mltp);
-
-        LOG("acc_add(biases, *drv_error_biases)");
-        acc_add(biases.get(), *drv_error_biases.get());
-
-        LOG("drv_error_biases.reset()");
-        drv_error_biases.reset();
-    }
+    return drv_error_biases;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -453,81 +297,87 @@ void Weighted::_backward(double learning_rate) {
 /*
  */
 
-Fc::Fc(Shape4D &prev_shape, int features, string activation_fn) : Weighted(prev_shape, features, activation_fn) {
+Fc::Fc(Shape4D &prev_shape_proto, int features, string activation_fn) : Weighted(prev_shape_proto, features, activation_fn) {
     layerType = "fc";
     layerOp = "acc_matrix_multiply";
     // TODO function pointers? prev->input, op, error_in->prev_error_out functions
 
-    weights_shape = Shape4D(prev_shape[1]*prev_shape[2]*prev_shape[3], features, 1, 1);
-    biases_shape = Shape4D(1, features, 1, 1);
-}
+    input_shape_proto = Shape4D(-1, prev_shape_proto[1]*prev_shape_proto[2]*prev_shape_proto[3], 1, 1);
+    output_shape_proto = Shape4D(-1, features, 1, 1);
 
-Fc::Fc(Layer *prev_layer, int features, string activation_fn) : Fc(prev_layer->get_shape(), features, activation_fn) {}
+    weights_shape = Shape4D(input_shape_proto[1], output_shape_proto[1], 1, 1);
+    biases_shape = Shape4D(1, output_shape_proto[1], 1, 1);
+    LOG("weights_shape = " + weights_shape.to_string());
+}
 
 Fc::~Fc() {
     cout << gph() + " Fc destructor" << endl;
 }
 
-void Fc::init_shape(Shape4D &prev_shape) {
-    LOG(gph() + "Fc::init_shape");
+t4d * Fc::forward_input(t4d &prev_output) {
+    Shape4D prev_shape = prev_output.shape();
+    assert_shape(prev_shape, prev_shape_proto);
 
-    input_shape = Shape4D(prev_shape.flat(1));
-    LOG("input_shape = " + input_shape.to_string());
-
-    output_shape = Shape4D(input_shape[0], features, 1, 1);
-    LOG("output_shape = " + output_shape.to_string());
-
-    weights_shape = Shape4D(input_shape[1], features, 1, 1);
-    LOG("weights_shape = " + weights_shape.to_string());
-
-    biases_shape = Shape4D(Shape4D(1, features, 1, 1));
-    LOG("biases_shape = " + biases_shape.to_string());
+    t4d *input = new t4d(prev_shape[0], input_shape_proto[1], input_shape_proto[2], input_shape_proto[3]);
+    input->create_acc();
+    acc_copy(prev_output, input);
+    return input;
 }
 
-void Fc::_forward_weights() {
-    LOG(gph() + "Fc::_forward_weights");
-
-    LOG("acc_copy(*prev_output, input)");
-    acc_copy(*prev_output->get(), input.get());
-
-    LOG("Input");
-    input->print();
-
-    LOG("Weights");
-    weights->print();
-
-    LOG("acc_matrix_multiply(*input, *weights, output_preact)");
-    acc_matrix_multiply(*input.get(), *weights, output_preact.get());
+t4d * Fc::forward_output(t4d &input) {
+    Shape4D input_shape = input.shape();
+    assert_shape(input_shape, input_shape_proto);
+    t4d * output_preact = new t4d(input_shape[0], output_shape_proto[1], output_shape_proto[2], output_shape_proto[3]);
+    output_preact->create_acc();
+    acc_matrix_multiply(input, *weights.get(), output_preact);
+    AddVecDim<double, 1>(output_preact, *biases.get());
+    return output_preact;
 }
 
-void Fc::_backward_weights() {
+t4d * Fc::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
     LOG(gph() + "Fc::_backward_weights");
-
+    Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
+    assert_shape(input_shape, input_shape_proto);
+    assert_shape(output_shape, output_shape_proto);
     LOG("unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(*input.get()))");
-    unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(*input.get()));
+    unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(input));
     LOG("[input_tranposed]");
-    input_tranposed->print();
-
+    XLOG(input_tranposed->print());
+    
+    t4d * drv_error_weights = new t4d(weights->shape());
+    drv_error_weights->create_acc();
     // DRV ERROR_WEIGHTS = (DRV ERROR_OUTPUT OP) * INPUT prototype
     LOG("acc_matrix_multiply(*input_tranposed.get(), *drv_error_output_preact, drv_error_weights)");
-    acc_matrix_multiply(*input_tranposed.get(), *drv_error_output_preact.get(), drv_error_weights.get());
+    acc_matrix_multiply(*input_tranposed.get(), drv_error_output_preact, drv_error_weights);
+
+    double mltp = 1.0f/input_shape[0];
+    acc_mltp(drv_error_weights, mltp);
+    return drv_error_weights;
 }
 
-void Fc::_backward_input() {
+t4d * Fc::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input) {
     LOG(gph() + "Fc::_backward_input");
+    Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
+    assert_shape(input_shape, input_shape_proto);
+    assert_shape(output_shape, output_shape_proto);
 
     LOG("unique_ptr<t4d> weights_transposed(acc_transposed<double,  0, 1>(*weights))");
     unique_ptr<t4d> weights_transposed(acc_transposed<double, 0, 1>(*weights.get()));
+    
     LOG("[weights_transposed]");
-    weights_transposed->print();
+    XLOG(weights_transposed->print());
 
+    unique_ptr<t4d> drv_error_input = make_unique<t4d>(input_shape);
+    drv_error_input->create_acc();
     LOG("acc_matrix_multiply(*drv_error_output_preact, *weights_transposed.get(), drv_error_input)");
-    acc_matrix_multiply(*drv_error_output_preact.get(), *weights_transposed.get(), drv_error_input.get());
+    acc_matrix_multiply(drv_error_output_preact, *weights_transposed.get(), drv_error_input.get());
 
-    // TODO transfer responsibly to prev_l->drv_error_output_act
-    // TODO deflatten or copy element wise
+    t4d * prev_drv_error_output = new t4d(Shape4D(output_shape[0], prev_shape_proto[1], prev_shape_proto[2], prev_shape_proto[3]));
+    prev_drv_error_output->create_acc();
     LOG("acc_copy(*drv_error_input, *prev_drv_error_output)");
-    acc_copy(*drv_error_input.get(), (*prev_drv_error_output).get());
+    acc_copy(*drv_error_input.get(), prev_drv_error_output);
+
+    return prev_drv_error_output;
 }
 
 /////////////////////////// <Conv> //////////////////////////////////////
@@ -537,104 +387,142 @@ Conv::Conv(Shape4D &prev_shape, int features, string activation_fn, vector<int> 
     layerType = "conv";
     layerOp = "acc_convolution2D";
 
-    weights_shape = Shape4D(features, prev_shape[1], filter_size[0], filter_size[1]);
-    biases_shape = Shape4D(1, features, 1, 1);
-}
+    int in_h = prev_shape_proto[2], in_w = prev_shape_proto[3];
 
-Conv::Conv(Layer *prev_layer, int features, string activation_fn, vector<int> _filter_size, vector<int> _stride, string _padding_type) : Conv(prev_layer->get_shape, features, activation_fn, _filter_size, _stride, _padding_type) {}
+    if (padding_type == "same")
+    {
+        if (stride[0] != 1 && stride[1] != 1)
+        {
+            throw(std::invalid_argument("SAME padding cannot have stride != 1"));
+        }
+
+        int padding_height = filter_size[0] - 1;
+        int padding_width = filter_size[1] - 1;
+
+        padding[0] = padding_height - padding_height / 2;
+        padding[1] = padding_height / 2;
+        padding[2] = padding_width - padding_width / 22;
+        padding[3] = padding_width / 2;
+
+        out_height = in_h;
+        out_width = in_w;
+    }
+    else if (padding_type == "valid")
+    {
+        int nom_h = in_h - filter_size[0];
+        int nom_w = in_w - filter_size[1];
+
+        if ((nom_h % stride[0]) != 0)
+        {
+            throw(std::invalid_argument("VALID padding: (input_height - filter_height) not divisible by stride."));
+        }
+
+        if ((nom_w % stride[1]) != 0)
+        {
+            throw(std::invalid_argument("VALID padding: (input_width - filter_width) not divisible by stride."));
+        }
+        out_height = nom_h / stride[0] + 1;
+        out_width = nom_w / stride[1] + 1;
+    }
+    else
+    {
+        throw(std::invalid_argument("Padding type not compatible."));
+    }
+
+    input_shape_proto = Shape4D(-1, prev_shape_proto[1], prev_shape_proto[2] + padding[0] + padding[1], prev_shape_proto[3] + padding[2] + padding[3]);
+    output_shape_proto = Shape4D(-1, features, out_height, out_width);
+
+    weights_shape = Shape4D(output_shape_proto[1], input_shape_proto[1], filter_size[0], filter_size[1]);
+    biases_shape = Shape4D(1, output_shape_proto[1], 1, 1);
+}
 
 Conv::~Conv() {
     cout << gph() + "Conv destructor" << endl;
 }
 
-void Conv::init_shape(Shape4D &prev_shape) {
-    LOG(gph() + "Conv::init_shape");
-    int B = prev_shape[0], C = prev_shape[1], in_h = prev_shape[2], in_w = prev_shape[3], out_h{0}, out_w{0};
+t4d * Conv::forward_input(t4d &prev_output) {
+    Shape4D prev_shape = prev_output.shape();
+    assert_shape(prev_shape, prev_shape_proto);
 
-    LOG("Padding " + padding_type);
+    t4d *input = new t4d(prev_shape[0], input_shape_proto[1], input_shape_proto[2], input_shape_proto[3]);
+    input->create_acc();
 
-    helper_CalcConvPaddingOutSize(padding_type, in_h, in_w, filter_size, stride, out_h, out_w, padding);
-
-    if (!is_padded()) {
-        input_shape = prev_shape;
-        LOG("input_shape = " + prev_shape.to_string());
+    if(is_padded()) {
+        acc_zeros(input);
+        acc_pad2D(prev_output, input, padding[0], padding[1], padding[2], padding[3]);
     }
     else {
-        Shape4D pad_shape(padding[0], padding[1], padding[2], padding[3]);
-
-        LOG("input_shape = " + prev_shape.to_string() + " + " + pad_shape.to_string());
-        input_shape = Shape4D(B, C, in_h + padding[0] + padding[1], in_w + padding[2] + padding[3]);
-        LOG("input_shape = " + input_shape.to_string());
+        acc_copy(prev_output, input);
     }
 
-    output_shape = Shape4D(B, features, out_h, out_w);
-    LOG("output_shape = " + output_shape.to_string());
+    return input;
 }
 
-void Conv::_forward_weights() {
-    LOG(gph() + "_apply_op");
+t4d * Conv::forward_output(t4d &input) {
+    Shape4D input_shape = input.shape();
+    assert_shape(input_shape, input_shape_proto);
 
-    if (is_padded()) {
-        acc_zeros(input.get());
-        LOG("acc_pad2D");
-        acc_pad2D(*prev_output->get(), input.get(), padding[0], padding[1], padding[2], padding[3]);
-    }
-    else {
-        acc_copy(*prev_output->get(), input.get());
-    }
+    t4d *output_preact = new t4d(input_shape[0], output_shape_proto[1], output_shape_proto[2], output_shape_proto[3]);
+    output_preact->create_acc();
 
-    LOG("Input");
-    input->print();
+    acc_convolution2D(input, *weights.get(), output_preact, stride);
 
-    LOG("Weights");
-    weights->print();
-
-    // clock_t start;
-    // start=clock();
-    LOG("acc_convolution2D");
-    acc_convolution2D(*input.get(), *weights.get(), output_preact.get(), stride);
-    // cout << "acc_convolution2D forward duration: " << dur(start) << std::setprecision(15) << std::fixed << endl;
-    // cout << "tparallel_conv5(input->data(), weights->data(),  output_preact->data(), input_shape[0], input_shape[1], input_shape[2], input_shape[3], output_shape[1], output_shape[2], output_shape[3], weights_shape[2], stride[0], false);" << endl;
-    // start=clock();
-    // tparallel_conv5(input->data(), weights->data(),  output_preact->data(), input_shape[0], input_shape[1], input_shape[2], input_shape[3], output_shape[1], output_shape[2], output_shape[3], weights_shape[2], stride[0], false);
-    // cout << "tparallel_conv5 forward duration: "  << dur(start) << std::setprecision(15) << std::fixed  << endl;
+    AddVecDim<double, 1>(output_preact, *biases.get());
+    return output_preact;
 }
 
-void Conv::_backward_weights() {
+t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
     LOG(gph() + "_backward_weights");
+
+    Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
+    assert_shape(input_shape, input_shape_proto);
+    assert_shape(output_shape, output_shape_proto);
+
     int rev_padding_h = filter_size[0] - 1 + input_shape[2] - output_shape[2], rev_padding_w = filter_size[1] - 1 + input_shape[3] - output_shape[3];
 
     // TODO pad same tensor? transpose same tensor?
 
     LOG("unique_ptr<t4d> drv_error_output_preact_transposed_flipped_padded(acc_transposed<double, 0, 1>(*drv_error_output_preact))");
-    unique_ptr<t4d> drv_error_output_preact_transposed_flipped_padded(acc_transposed<double, 0, 1>(*drv_error_output_preact.get()));
+    unique_ptr<t4d> drv_error_output_preact_transposed_flipped_padded(acc_transposed<double, 0, 1>(drv_error_output_preact));
+    
     LOG("[drv_error_output_preact_transposed]");
-    drv_error_output_preact_transposed_flipped_padded->print();
+    XLOG(drv_error_output_preact_transposed_flipped_padded->print());
 
     LOG("acc_flip_spatial(drv_error_output_preact_transposed_flipped_padded.get())");
     acc_flip_spatial(drv_error_output_preact_transposed_flipped_padded.get());
+
     LOG("[drv_error_output_preact_transposed_flipped]");
-    drv_error_output_preact_transposed_flipped_padded->print();
+    XLOG(drv_error_output_preact_transposed_flipped_padded->print());
 
     LOG("drv_error_output_preact_transposed_flipped_padded.reset(acc_padded2D_inner(*drv_error_output_preact_transposed_flipped_padded.get(), rev_padding_h - rev_padding_h/2,  rev_padding_w - rev_padding_w/2, rev_padding_h/2,  rev_padding_w/2, 0, 0))");
     drv_error_output_preact_transposed_flipped_padded.reset(acc_padded2D_inner(*drv_error_output_preact_transposed_flipped_padded.get(), rev_padding_h - rev_padding_h / 2, rev_padding_w - rev_padding_w / 2, rev_padding_h / 2, rev_padding_w / 2, 0, 0));
+    
     LOG("[drv_error_output_preact_transposed_flipped_padded]");
-    drv_error_output_preact_transposed_flipped_padded->print();
+    XLOG(drv_error_output_preact_transposed_flipped_padded->print());
 
     LOG("unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(*input))");
-    unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(*input.get()));
+    unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(input));
+    
     LOG("[input_transposed]");
-    input_transposed_flipped->print();
+    XLOG(input_transposed_flipped->print());
 
     LOG("acc_flip_spatial(input_transposed_flipped)");
     acc_flip_spatial(input_transposed_flipped.get());
 
     LOG("[input_transposed_flipped]");
-    input_transposed_flipped->print();
+    XLOG(input_transposed_flipped->print());
 
+    t4d * drv_error_weights = new t4d(weights->shape());
+    drv_error_weights->create_acc();
+    //TODO check if acc on anything new for return
     // clock_t start=clock();
     LOG("acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input, drv_error_weights, {1, 1})");
-    acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input_transposed_flipped.get(), drv_error_weights.get(), {1, 1});
+    acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input_transposed_flipped.get(), drv_error_weights, {1, 1});
+
+    double mltp = 1.0f/input.shape()[0];
+    acc_mltp(drv_error_weights, mltp);
+
+    return drv_error_weights;
     // cout << "acc_convolution2D backward duration: " << dur(start) << std::setprecision(15) << std::fixed << endl;
     // Shape4D in_s = drv_error_output_preact_transposed_flipped_padded->shape(), out_s = drv_error_weights->shape(), w_s = input_transposed_flipped->shape();
     // int bs = in_s[0], stri = 1, fs = w_s[2];
@@ -646,12 +534,17 @@ void Conv::_backward_weights() {
 }
 
 // TODO input, drv_error_output not copies?
-void Conv::_backward_input() {
+t4d * Conv::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input) {
     LOG(gph() + "_backward_input");
+
+    Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
+    assert_shape(input_shape, input_shape_proto);
+    assert_shape(output_shape, output_shape_proto);
+
     // formula is rev_p = 2*(F-1) + (S-1)*(O-1)
     // drv_error_output_preact[B D H2 W2]->drv_error_output_preact[B D (H2 + rev_p[0]) (W2 + rev_p[1]);
     LOG("unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(*drv_error_output_preact,  filter_size[0]-1,  filter_size[0]-1, filter_size[1]-1,  filter_size[1]-1, stride[0]-1, stride[1]-1))");
-    unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(*drv_error_output_preact.get(), filter_size[0] - 1, filter_size[0] - 1, filter_size[1] - 1, filter_size[1] - 1, stride[0] - 1, stride[1] - 1));
+    unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(drv_error_output_preact, filter_size[0] - 1, filter_size[0] - 1, filter_size[1] - 1, filter_size[1] - 1, stride[0] - 1, stride[1] - 1));
 
     // weights[D C F1 F2]->[C D F1 F2], and flip F1, F2 elements
     LOG("unique_ptr<t4d> weights_transposed_flipped(acc_transposed<double, 0, 1>(*weights))");
@@ -660,13 +553,20 @@ void Conv::_backward_input() {
     LOG("acc_flip_spatial(weights_transposed_flipped.get())");
     acc_flip_spatial(weights_transposed_flipped.get());
 
+    unique_ptr<t4d> drv_error_input = make_unique<t4d>(input.shape());
+    drv_error_input->create_acc();
     // = ERROR_INPUT = ERROR_OUTPUT * WEIGHTS
+    
     LOG("acc_convolution2D(*drv_error_output_preact_padded.get(), *weights_transposed_flipped.get(), drv_error_input, {1, 1})");
     acc_convolution2D(*drv_error_output_preact_padded.get(), *weights_transposed_flipped.get(), drv_error_input.get(), {1, 1});
 
+    t4d *prev_drv_error_output = new t4d(Shape4D(input.shape()[0], prev_shape_proto[1], prev_shape_proto[2], prev_shape_proto[3]));
+    prev_drv_error_output->create_acc();
     // update prev drv error output act
     // TODO transfer responsibly, maybe no padding was applied etc..no memory traces, no duplicates
     LOG("acc_rev_pad2D(*drv_error_input, *prev_drv_error_output, padding[0], padding[1], padding[2], padding[3])");
-    acc_rev_pad2D(*drv_error_input.get(), (*prev_drv_error_output).get(), padding[0], padding[1], padding[2], padding[3]);
+    acc_rev_pad2D(*drv_error_input.get(), prev_drv_error_output, padding[0], padding[1], padding[2], padding[3]);
+
+    return prev_drv_error_output;
 }
 /////////////////////////////////////////////////////////////////
