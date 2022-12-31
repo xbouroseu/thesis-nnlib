@@ -1,5 +1,5 @@
 {
     "name": "HPCOpenCVBoostGdbGHRepo",
-    "image": "thesis:hpc_opencv_boost_gdb_ghrepo"
+    "image": "sirmihawk/thesis:hpc22.3_clean"
 }
 
