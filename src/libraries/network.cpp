@@ -175,6 +175,10 @@ void Network::train(const LabeledData<double> &train_data, const LabeledData<dou
     cout << "Time now: " << clock() << " | start: " << start << " | duration: " << duration << " | ms: " << (duration/CLOCKS_PER_SEC) << std::setprecision(15) << std::fixed << endl;
 }
 
+void hello() {
+
+}
+
 void param2file_al(double *param, string path, string param_name, int num_param ) {
     ofstream out_param;
     out_param.open("NEURAL_NETWORK_TRAINED.xml", ios::out | ios::app);
