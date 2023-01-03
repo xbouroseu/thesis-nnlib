@@ -7,7 +7,7 @@
         "panel": "shared",
         "showReuseMessage": true,
         "clear": false,
-        "close": false
+        "close": false,
     },
     "tasks": [
         {
@@ -30,7 +30,9 @@
                 "../bin/tensor.o",
                 "../bin/utils.o",
                 "../bin/ops.o",
-                "${input:acc_level}",
+                "/lib/x86_64-linux-gnu/libboost_log.so",
+                "/lib/x86_64-linux-gnu/libpthread.so",
+                "-acc",
                 "-Minfo"
             ],
             "options": {
@@ -55,8 +57,8 @@
                 "-I/usr/local/include/opencv4",
                 "-Ilibraries",
                 "-Mcudalib=curand",
+                "-DBOOST_LOG_DYN_LINK",
                 "${input:acc_level}",
-                "${input:log_level}",
                 "${input:misc_input}"
             ],
             "options": {
@@ -84,17 +86,6 @@
                 "",
                 "-acc=host",
                 "-acc"
-            ],
-            "default": ""
-        },
-        {
-            "type": "pickString",
-            "id": "log_level",
-            "description": "choose your log level",
-            "options": [
-                "",
-                "-D_DEBUG",
-                "-D_DEBUG_VERBOSE"
             ],
             "default": ""
         },

@@ -3,6 +3,7 @@
 #include <fstream>
 #include "mnist.hpp"
 #include "utils.hpp"
+
 /*
 extern void run_optimal(double *, double *, double *, double *, int, int, int, int);
 extern void run_w2kernel(double *);
@@ -13,6 +14,7 @@ using Neural::Tensor4D;
 using Neural::LabeledData;
 using Neural::Shape4D;
 using namespace std;
+namespace logging = boost::log;
 
 typedef unsigned char uchar;
 
@@ -111,7 +113,7 @@ Tensor4D<int> * read_mnist_labels(string full_path) {
 
 template<class T>
 vector<LabeledData<T>> split_dataset(Tensor4D<T> * original_data , Tensor4D<int> *original_labels, float percentile) {
-    LOG("split_dataset");  
+    LOG(trace) << "split_dataset";  
     Shape4D data_shape = original_data->shape(), labels_shape = original_labels->shape();
 
     assert(data_shape[0]==labels_shape[0]);
@@ -128,34 +130,29 @@ vector<LabeledData<T>> split_dataset(Tensor4D<T> * original_data , Tensor4D<int>
     valid_data_shape[0] = num_valid_data;
     valid_labels_shape[0] = num_valid_data;
 
-    LabeledData<T> train_data_labeled, valid_data_labeled;
-    
-    train_data_labeled.data = new Tensor4D<T>(train_data_shape);
-    train_data_labeled.labels = new Tensor4D<int>(train_labels_shape);
+    Tensor4D<T> *train_data = new Tensor4D<T>(train_data_shape), *valid_data = new Tensor4D<T>(valid_data_shape);
+    Tensor4D<int> *train_labels = new Tensor4D<int>(train_labels_shape), *valid_labels = new Tensor4D<int>(valid_labels_shape);
 
-    valid_data_labeled.data = new Tensor4D<T>(valid_data_shape);
-    valid_data_labeled.labels = new Tensor4D<int>(valid_labels_shape);
-    
     for(int i = 0; i < num_train_data; i++) {
         for(int j = 0; j < data_sample_size; j++) {
-            train_data_labeled.data->iat(i*data_sample_size + j) = original_data->iat(i*data_sample_size + j);
+            train_data->iat(i*data_sample_size + j) = original_data->iat(i*data_sample_size + j);
         }
         for(int j = 0; j < labels_sample_size; j++) {
-            train_data_labeled.labels->iat(i*labels_sample_size + j) = original_labels->iat(i*labels_sample_size + j);
+            train_labels->iat(i*labels_sample_size + j) = original_labels->iat(i*labels_sample_size + j);
         }
     }
     
     for(int i = num_train_data; i < num_train_data + num_valid_data; i++) {
         for(int j = 0; j < data_sample_size; j++) {
-            valid_data_labeled.data->iat(i*data_sample_size + j) = original_data->iat(i*data_sample_size + j);
+            valid_data->iat(i*data_sample_size + j) = original_data->iat(i*data_sample_size + j);
         }
         for(int j = 0; j < labels_sample_size; j++) {
-            valid_data_labeled.labels->iat(i*labels_sample_size + j) = original_labels->iat(i*labels_sample_size + j);
+            valid_labels->iat(i*labels_sample_size + j) = original_labels->iat(i*labels_sample_size + j);
         }
     }
 
-    LOG("/split_data");
-    return vector<LabeledData<T>>{train_data_labeled, valid_data_labeled};
+    LOG(trace) << "/split_data";
+    return vector<LabeledData<T>>{LabeledData<T>(train_data, train_labels), LabeledData<T>(valid_data, valid_labels)};
 
 }
 

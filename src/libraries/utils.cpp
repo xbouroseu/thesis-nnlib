@@ -3,6 +3,14 @@
 #include "utils.hpp"
 
 using namespace std;
+namespace logging = boost::log;
+
+void Neural::set_log_level(boost::log::trivial::severity_level sv) {
+    logging::core::get()->set_filter
+    (
+        logging::trivial::severity >= sv
+    );
+}
 
 double dur(double start) {
     return (clock()-start)/CLOCKS_PER_SEC;

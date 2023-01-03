@@ -4,6 +4,7 @@
 #include <memory>
 #include <iostream>
 
+#include "utils.hpp"
 #include "tensor.hpp"
 #include "layer.hpp"
 
@@ -24,7 +25,7 @@ namespace Neural {
 
         template<class L, class ... Args>
         void add_layer(Args ...args) {
-            LOG("Network::add_layer");
+            LOG(trace) << "Network::add_layer";
             Neural::Layers::Layer *newl;
             Neural::Shape4D prev_sh;          
             
@@ -38,28 +39,12 @@ namespace Neural {
             newl = new L(prev_sh, args...);
             layers.push_back(newl);
         }
-
-        void add_layer_fc() {
-            LOG("Network::add_layer");
-            Neural::Layers::Layer *newl;
-            Neural::Shape4D prev_sh;
-
-            if(layers.size()==0) {
-                prev_sh = input_shape_proto;
-            }
-            else {
-                prev_sh = layers[layers.size()-1]->get_output_shape_proto();
-            }
-            
-            newl = new Neural::Layers::Fc(prev_sh, 3, "relu"); 
-            layers.push_back(newl);
-        }
         
         void set_debug(bool);
         void set_acc(bool);
         void alloc();
         void forward();
-        void train(const LabeledData<double> &, const LabeledData<double> &, int, bool, double, std::string);
+        void train(const Tensor4D<double> *, const Tensor4D<int> *, const Tensor4D<double> *, const Tensor4D<int> *, int, bool, double, std::string);
     };
 }
 
