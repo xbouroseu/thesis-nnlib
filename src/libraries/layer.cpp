@@ -69,7 +69,6 @@ string Layer::gph() {
     return ret;
 }
 
-
 t4d * Layer::activate(t4d &output_preact) {
     LOG(trace) << "Activation: " + activation_fn.name();
 

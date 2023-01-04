@@ -181,11 +181,9 @@ int main(int argc, char *argv[]) {
         cout << train_data->to_string() << endl;
 
         LOG(trace) << "LOG(info) << train_data->to_string()";
-
-        if(boost::log::trivial::trace >= 0) {
-            LOG(trace) << "CLOG";
-            cout << train_data->to_string() << endl;
-        }   
+        
+        LOG(trace) << "CLOG";
+        cout << train_data->to_string() << endl; 
         
         filter_size_conv1 = {3, 3};
         filter_size_conv2 = {3,3};
@@ -217,34 +215,34 @@ int main(int argc, char *argv[]) {
 
     Network testnet(train_data->shape()); //destructor?
 
-    // LOG(trace) << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"same\")";
-    // testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, "same");
+    LOG(trace) << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"same\")";
+    testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, "same");
    
-    // LOG(trace) << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"same\")";
-    // testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, "same");
+    LOG(trace) << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"same\")";
+    testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, "same");
     
-    // LOG(trace) << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
-    // testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
+    LOG(trace) << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
+    testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
     
-    // LOG(trace) << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")";
-    // testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
+    LOG(trace) << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")";
+    testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
-    // int batch_size;
-    // if(debug_mode) {
-    //     LOG(info) << "batch_size = train_data->shape()[0]";
-    //     batch_size = train_data->shape()[0];
-    // }
-    // else {
-    //     LOG(info) << "batch_size = atoi(argv[2])";
-    //     int batch_size= atoi(argv[2]);
-    // }
+    int batch_size;
+    if(debug_mode) {
+        LOG(info) << "batch_size = train_data->shape()[0]";
+        batch_size = train_data->shape()[0];
+    }
+    else {
+        LOG(info) << "batch_size = atoi(argv[2])";
+        int batch_size= atoi(argv[2]);
+    }
 
-    // LOG(info) << "batch_size = " << batch_size;
+    LOG(info) << "batch_size = " << batch_size;
 
-    // double learning_rate = 0.05;
+    double learning_rate = 0.05;
     
-    // LOG(trace) << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
-    // testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, true, learning_rate, "CrossEntropy");
+    LOG(trace) << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
+    testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, true, learning_rate, "CrossEntropy");
 
     return 0;
 }

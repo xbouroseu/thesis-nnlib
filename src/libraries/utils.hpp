@@ -5,7 +5,7 @@
 #include <ctime>
 
 #define LOG(m) BOOST_LOG_TRIVIAL(m)
-
+#define XLOG(m) if(m > Neural::log_level) { cout }
 #ifdef _OPENACC
 constexpr int IS_OPENACC = 1;
 #include "openacc.h"
@@ -26,6 +26,7 @@ constexpr int IS_OPENACC = 0;
 double dur(double);
 
 namespace Neural {
+    int log_level = 0;
     constexpr int device_type_host = 2;
     constexpr int device_type_gpu = 4;
     
