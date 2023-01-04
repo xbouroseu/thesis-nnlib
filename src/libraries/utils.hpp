@@ -1,4 +1,11 @@
 #pragma once
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <ctime>
+
+#define LOG(m) BOOST_LOG_TRIVIAL(m)
+#define XLOG(m) if(m > Neural::log_level) { cout }
 #ifdef _OPENACC
 constexpr int IS_OPENACC = 1;
 #include "openacc.h"
@@ -16,28 +23,10 @@ constexpr int IS_OPENACC = 0;
 #define hdevicetype 2
 #include <cstddef>
 
-#ifdef _DEBUG
-#include <iostream>
-#define LOG(m)  std::cout << m << std::endl;
-#define XLOG(m) m
-#else
-#define LOG(m)  
-#define XLOG(m) 
-#endif
-
-#ifdef _DEBUG_VERBOSE
-#include <iostream>
-#define VLOG(m)  std::cout << m << std::endl;
-#define XVLOG(m) m
-#else
-#define VLOG(m)  
-#define XVLOG(m) 
-#endif
-
-#include <ctime>
-double dur(double );
+double dur(double);
 
 namespace Neural {
+    int log_level = 0;
     constexpr int device_type_host = 2;
     constexpr int device_type_gpu = 4;
     
@@ -45,6 +34,7 @@ namespace Neural {
         return misacc();
     }
     
+    void set_log_level(boost::log::trivial::severity_level);
     int get_device_type();
     void *deviceptr(void*);
     

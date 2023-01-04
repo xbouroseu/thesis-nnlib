@@ -137,7 +137,10 @@ namespace Neural {
             }
         }
         
+        std::string to_string();
         Tensor4D<T> & reshape(const Shape4D &new_shape) { assert(new_shape.size() == _shape.size()); _shape = new_shape; return *this; }
+        
+        std::ostream & put(std::ostream & );
         
         #pragma acc routine seq
         void set(int index, T val) {
@@ -186,11 +189,14 @@ namespace Neural {
     };
 
     template<class T>
-    struct LabeledData {
+    class LabeledData {
+    private: 
         Tensor4D<T> *data;
         Tensor4D<int> *labels;
+    public:
+        LabeledData(Tensor4D<T> *, Tensor4D<int> *);
+
+        auto get_data() { return data; }
+        auto get_labels() { return labels; }
     };
 };
-
-template<class T> std::ostream & operator<<(std::ostream & pstream, Tensor4D<T> tens);
-std::ostream & operator<<(std::ostream & pstream, Shape4D shap);

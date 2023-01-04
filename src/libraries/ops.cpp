@@ -5,11 +5,11 @@
 #include <vector>
 #include <type_traits>
 #include <cassert>
+#include <iomanip>
 #include "openacc.h"
 #include "utils.hpp"
 #include "ops.hpp"
 #include "tensor.hpp"
-#include <iomanip>
 
 using Neural::Tensor4D;
 using Neural::Shape4D;
@@ -29,12 +29,12 @@ public:
         device_type = dvtype;
         
         if (device_type == Neural::device_type_gpu) {
-            cout <<  "cuGenerator gpu" <<  endl;
+            LOG(debug) <<  "cuGenerator gpu";
             istat = curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
             reportError();
         }
         else if (device_type == Neural::device_type_host) {
-            cout <<  "cuGenerator host" <<  endl;
+            LOG(debug) <<  "cuGenerator host";
             istat = curandCreateGeneratorHost(&gen, CURAND_RNG_PSEUDO_DEFAULT);
             reportError();
         }
@@ -70,10 +70,10 @@ void generateNormal(T *data,  int n,  T mean,  T stddev) {
     
     T *adata = data;
     
-    LOG("Generate normal | device type: " << device_type << " | present: " << is_present);
+    LOG(debug) << "Generate normal | device type: " << device_type << " | present: " << is_present;
     
     if ( (device_type == Neural::device_type_gpu) && is_present ) {
-        LOG("Getting device ptr");
+        LOG(debug) << "Getting device ptr";
         gen = new cuGenerator(Neural::device_type_gpu);
         adata = (T*)Neural::deviceptr(data);
     }
@@ -82,12 +82,12 @@ void generateNormal(T *data,  int n,  T mean,  T stddev) {
     }
     
     if constexpr(std::is_same<T,  double>::value) {
-        LOG("double generator");
+        LOG(debug) << ("double generator");
         
         curandGenerateNormalDouble(gen->get_gen(), adata, n, mean, stddev);
     }
     else if constexpr(std::is_same<T,  float>::value) {
-        LOG("float generator");
+        LOG(debug) << ("float generator");
         curandGenerateNormal(gen->get_gen(), adata, n, mean, stddev);
     }
     else {
@@ -196,8 +196,8 @@ void acc_rng(Tensor4D<T> *output, T mtlp) {
     int pn = n;
     bool resized{false};
 
-    LOG("acc_set_rngv n: " << n);;
-    
+    LOG(debug) << "acc_set_rngv n: " << n;
+
     if(n%2 == 1) {
         pn = n + 1;
         b_data = new T[pn];
@@ -609,7 +609,7 @@ void acc_softmax_backprop(const Tensor4D<T> &drv_error_output, const Tensor4D<T>
 
 template <class T>
 void acc_pad2D_inner(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padding_top, int padding_bottom, int padding_left, int padding_right, int padding_inner_rows, int padding_inner_columns) {
-    LOG("acc_pad2D_inner");
+    LOG(trace) << ("acc_pad2D_inner");
     
     Shape4D pre_pad_shape = pre_pad.shape(), post_pad_shape = post_pad->shape();
     
@@ -622,7 +622,7 @@ void acc_pad2D_inner(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padd
     const T *pre_pad_data = pre_pad.data();
     T *post_pad_data = post_pad->data();
     
-    LOG("Entering loop collapse(4)");
+    LOG(debug) << ("Entering loop collapse(4)");
     #pragma acc data present(pre_pad_data[:(B*C*M*N)], post_pad_data[:(B*C*padded_N*padded_M)])
     {
     acc_zeros(post_pad);
@@ -661,7 +661,7 @@ Tensor4D<T>* acc_padded2D_inner(const Tensor4D<T> &pre_pad, int padding_top, int
     
     Tensor4D<T> *ret = new Tensor4D<T>(B, C, N + padding_top + padding_bottom + (N-1)*padding_inner_rows, M + padding_left + padding_right + (M-1)*padding_inner_columns);
     ret->create_acc();
-    LOG("acc_pad2D_inner(pre_pad, ret, padding_top, padding_bottom, padding_left, padding_right, padding_inner_rows, padding_inner_columns)");
+    LOG(debug) << ("acc_pad2D_inner(pre_pad, ret, padding_top, padding_bottom, padding_left, padding_right, padding_inner_rows, padding_inner_columns)");
     
     acc_pad2D_inner(pre_pad, ret, padding_top, padding_bottom, padding_left, padding_right, padding_inner_rows, padding_inner_columns);
     

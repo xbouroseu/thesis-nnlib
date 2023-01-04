@@ -10,6 +10,7 @@
 using namespace std;
 using Neural::Shape4D;
 using Neural::Tensor4D;
+using Neural::LabeledData;
 
 Shape4D::Shape4D() {}
 
@@ -53,10 +54,6 @@ string Shape4D::to_string() {
     return "Shape4D(" + std::to_string(dims[0]) + "," + std::to_string(dims[1]) + "," + std::to_string(dims[2]) + "," + std::to_string(dims[3]) + ")";
 }
 
-std::ostream & operator<<(std::ostream & pstream, Shape4D shap) {
-    return pstream << shap.to_string();
-}
-
 Shape4D Shape4D::flat(int dim) const {
     int _size = size();
     Shape4D retsh;
@@ -81,11 +78,11 @@ Shape4D Shape4D::flat(int dim) const {
 }
 
 template<class T> Tensor4D<T>::Tensor4D(Shape4D cshape) :_shape(cshape) {
-    LOG("<Tensor4D(" << cshape.to_string());
+    LOG(trace) << "<Tensor4D>" <<  _shape.to_string();
     
     this->reserve();
         
-    LOG("</Tensor4D>");
+    LOG(trace) << "</Tensor4D>";
 }
 
 template<class T> Tensor4D<T>::Tensor4D(int a, int b, int c, int d) : Tensor4D(Shape4D(a,b,c,d)) {}
@@ -93,9 +90,10 @@ template<class T> Tensor4D<T>::Tensor4D(int a, int b, int c, int d) : Tensor4D(S
 template<class T> Tensor4D<T>::Tensor4D() {}
 
 template<class T> Tensor4D<T>::~Tensor4D() {
-    LOG("<~Tensor4D>shape: " << _shape.to_string());
+    LOG(trace) << "<~Tensor4D>";
+    LOG(trace) << _shape.to_string();
     reset_data();
-    LOG("</~Tensor4D>");
+    LOG(trace) << ("</~Tensor4D>");
 }
 
 //TODO can delegate other ctor (T*, Shape4D) if same functionality?\
@@ -169,11 +167,11 @@ template<class T> bool Tensor4D<T>::is_present_acc() const {
 }
 
 template<class T> void Tensor4D<T>::update_self_acc() {
-    LOG("Tensor4D::update_self_acc()");
-    LOG("Update self is_present_gpu: ");
+    LOG(trace) << "Tensor4D::update_self_acc()";
     
+    LOG(trace) << "Update self is_present_gpu: ";
     bool is_pr = this->is_present_acc();
-    LOG(is_pr);
+    LOG(trace) << is_pr;
     int _size = this->size();
     #pragma acc update self(_data[:_size]) if(is_pr)
 }
@@ -202,7 +200,7 @@ void print_line(int __C, int __W) {
 }
 
 template<class G>
-void get_line(ostream & pstream, int __C, int __W) {
+string get_line(int __C, int __W) {
     int __z;
     
     if constexpr(is_same<G, int>::value) {
@@ -212,96 +210,76 @@ void get_line(ostream & pstream, int __C, int __W) {
         __z = 12;
     }
     
+    string ret = "";
     for(int c = 0; c < __C; c++) {
-        pstream << "-";
+        ret += "-";
         for(int w = 0; w < __W; w++) {
             for(int z = 0; z < __z; z++) {
-                pstream << "-";
+                ret += "-";
             }
         }
-        pstream << "  ";
+        ret += "  ";
     }
+    return ret +"\n";
 }
 
-template<class T>
-ostream & Tensor4D<T>::put(ostream & pstream) {
-    pstream << "Tensor4D::print()" << endl;
+template<class T> std::string Tensor4D<T>::to_string() {
+    string ret = "Tensor4D::to_string()\n";
+
     this->update_self_acc();
     
-    pstream << "Shape: " << _shape << endl;
-    
+    ret += _shape.to_string() + "\n";
+
     int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
     
-    pstream << "Size: " << B << " x " << C << " x " <<  H << " x " <<  W << " = " <<  _shape.size() << endl;
-    
+    auto format = "Size: %d x %d x %d x %d = %d\n";
+    auto size = snprintf(nullptr, 0, format ,B, C, H, W, _shape.size());
+    string temp(size+1, '\0');
+    sprintf(&temp[0], format , B, C, H, W, _shape.size());
+    ret += temp;
+
     for(int b = 0; b < B; b++) {
-        pstream << endl;
-        print_line<T>(C, W);
-        pstream << endl;
+        ret += get_line<T>(C, W);
+
         for(int h = 0; h < H; h++) {
             for(int c = 0; c < C; c++) {
-                printf("|");
+                ret+= "|";
                 for(int w = 0; w < W; w++) {
+                    const char * format2;
                     if constexpr(is_same<T, int>::value) {
-                        printf("%5d|", _data[ ( (b* C + c)* H +  h) * W + w]);
+                        format2 = "%5d|";
                     }
                     else {
-                        printf("%+011.5f|", _data[ ( (b* C + c)* H +  h) * W + w]);
+                        format2 = "%+011.5f|";
                     }
+                    int size2 = snprintf(nullptr, 0, format2, _data[ ( (b* C + c)* H +  h) * W + w]);
+                    string temp2(size2+1, '\0');
+                    sprintf(&temp2[0], format2, _data[ ( (b* C + c)* H +  h) * W + w]);
+                    ret += temp2;
                 }
-                printf("  ");
+                ret += "  ";
             }
-            printf("\n");
+            ret += "\n";
         }
-        print_line<T>(C, W);
-        printf("\n");
+        ret += get_line<T>(C, W);
+        ret += "\n";
     }
-    printf("\n");
+    ret += "\n";
+    return ret;
 }
 
 template<class T> void Tensor4D<T>::print() {
-    // LOG("Tensor4D::print()");
-    // this->update_self_acc();
-    
-    // LOG("Shape: " << shape().to_string());
-    
-    // int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
-    
-    // printf("Size: %d x %d x %d x %d = %d\n", B, C, H, W, _shape.size());
-    
-    // for(int b = 0; b < B; b++) {
-    //     printf("\n");
-    //     print_line<T>(C, W);
-    //     printf("\n");
-    //     for(int h = 0; h < H; h++) {
-    //         for(int c = 0; c < C; c++) {
-    //             printf("|");
-    //             for(int w = 0; w < W; w++) {
-    //                 if constexpr(is_same<T, int>::value) {
-    //                     printf("%5d|", _data[ ( (b* C + c)* H +  h) * W + w]);
-    //                 }
-    //                 else {
-    //                     printf("%+011.5f|", _data[ ( (b* C + c)* H +  h) * W + w]);
-    //                 }
-    //             }
-    //             printf("  ");
-    //         }
-    //         printf("\n");
-    //     }
-    //     print_line<T>(C, W);
-    //     printf("\n");
-    // }
-    // printf("\n");
-    LOG("Tensor4D::print()");
+    LOG(trace) << "Tensor4D::print()";
     this->update_self_acc();
     
-    LOG("Shape: " << shape().to_string());
+    LOG(trace) << _shape.to_string();
     
     int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
     
     printf("Size: %d x %d x %d x %d = %d\n", B, C, H, W, _shape.size());
     
     for(int b = 0; b < B; b++) {
+
         printf("\n");
         print_line<T>(C, W);
         printf("\n");
@@ -329,3 +307,7 @@ template<class T> void Tensor4D<T>::print() {
 template class Tensor4D<double>;
 template class Tensor4D<float>;
 template class Tensor4D<int>;
+
+template<class T> LabeledData<T>::LabeledData(Tensor4D<T> *cdata, Tensor4D<int> *clabels) : data(cdata), labels(clabels) {}
+template class LabeledData<double>;
+template class LabeledData<float>;
