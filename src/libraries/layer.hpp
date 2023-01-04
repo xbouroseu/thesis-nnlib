@@ -29,7 +29,7 @@ namespace Neural::Layers {
         static int nl;
     public:
         Layer() {}
-        Layer(Neural::Shape4D &, int, std::string);
+        Layer(Neural::Shape4D , int, std::string);
         virtual ~Layer() = default;
 
         auto type() const { return layerType; }
@@ -56,7 +56,7 @@ namespace Neural::Layers {
     class Weighted : public Layer {
     protected:
         Weighted() {}
-        Weighted(Neural::Shape4D &, int, std::string);
+        Weighted(Neural::Shape4D , int, std::string);
         virtual ~Weighted();
         
         Neural::Shape4D weights_shape, biases_shape;
@@ -73,7 +73,7 @@ namespace Neural::Layers {
     class Fc: public Weighted {
     
     public:
-        Fc(Neural::Shape4D &, int, std::string);
+        Fc(Neural::Shape4D , int, std::string);
         ~Fc();
         
         Neural::Tensor4D<double> * forward_input(Neural::Tensor4D<double> &);
@@ -100,7 +100,7 @@ namespace Neural::Layers {
         bool is_padded() { return padding[0] != 0 || padding[1] != 0 || padding[2]!=0 || padding[3]!=0; }
 
     public:
-        Conv(Neural::Shape4D &, int, std::string, std::vector<int>, std::vector<int>, std::string);
+        Conv(Neural::Shape4D , int, std::string, std::vector<int>, std::vector<int>, std::string);
         ~Conv();
     };
        

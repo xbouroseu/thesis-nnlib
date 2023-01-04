@@ -21,7 +21,7 @@ typedef Tensor4D<double> t4d;
 
 Neural::Network::Network(Shape4D in_sh_pr) : input_shape_proto(Shape4D(-1, in_sh_pr[1], in_sh_pr[2], in_sh_pr[3])) {
     LOGV << "Network::Network";
-    LOGV << "input_shape_proto: " << input_shape_proto.to_string();
+    LOGD << "input_shape_proto: " << input_shape_proto.to_string();
 }
 
 Network::~Network() {
@@ -54,7 +54,7 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
 
     
     Shape4D train_shape = train_dataset->shape(), labels_shape = train_labels->shape();
-    LOGV  << "Train shape: " << train_shape.to_string();
+    LOGD  << "Train shape: " << train_shape.to_string();
     
     int train_num_samples = train_shape[0], train_size = train_dataset->size();
     int train_num_outputs = labels_shape[1];
@@ -69,21 +69,23 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
     /////////////////////////
     {    
         Shape4D batch_data_shape(batch_size, train_shape[1], train_shape[2], train_shape[3]);
-        LOGV << "batch_data_shape = " << batch_data_shape.to_string();
+        LOGD << "batch_data_shape = " << batch_data_shape.to_string();
         batch_data = make_unique<t4d>(batch_data_shape);
         batch_data->create_acc();
     }
     
     {
         Shape4D batch_labels_shape(batch_size, labels_shape[1], labels_shape[2], labels_shape[3]);
-        LOGV << "batch_labels_shape = " << batch_labels_shape.to_string();
+        LOGD << "batch_labels_shape = " << batch_labels_shape.to_string();
         batch_labels = make_unique<Tensor4D<int>>(batch_labels_shape);
         batch_data->create_acc();
     }
     //////////////////////////
     
-    LOGV << "Calling Layer::init";
+    LOGD << "Calling Layer::init";
+    int lnn = 0;
     for(auto it: layers) {
+        LOGD << "Layer " << ++lnn << " init";
         it->init();
     }
     int iters = train_num_samples/batch_size;
@@ -99,28 +101,33 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
         for(int iter = 0; iter < iters; iter++) {
             batch_start = (iter*batch_size)%(train_num_samples-batch_size+1);
 
-            string fors; 
-            sprintf(&fors[0], ">> Step %d, batch_start: %d<< \n",iter, batch_start);
-            LOGD << fors;
+            LOGD.printf(">> Step %d, batch_start: %d<< \n",iter, batch_start);
 
             acc_make_batch<double>(*train_dataset, batch_data.get(),  batch_start); 
-            LOGD << "[batch_data]";
-            LOGD << (batch_data->to_string());
-            
+            IF_PLOG(plog::debug) {
+                LOGD << "[batch_data]";
+                cout << batch_data->to_string() << endl;
+            }
+
             acc_normalize_img(batch_data.get());
-            LOGD << "[batch_data normalized]";
-            LOGD << batch_data->to_string();           
+            IF_PLOG(plog::debug) {
+                LOGD << "[batch_data_normalized]";
+                cout << batch_data->to_string() << endl;
+            }   
             
             acc_make_batch<int>(*train_labels, batch_labels.get(), batch_start);
             
-            LOGD << "[batch_labels]";
-            LOGD << batch_labels->to_string();
+            IF_PLOG(plog::debug) {
+                LOGD << "[batch_labels]";
+                cout << batch_labels->to_string() << endl;
+            }
+
             LOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             
             vector<t4d *> inputs, outputs;
             t4d *prev_output = batch_data.get();
 
-            LOGV << "for(int i = 0; i < layers.size(); i++)";
+            LOGD << "for(int i = 0; i < layers.size(); i++)";
             for(int i = 0; i < layers.size(); i++) {
                 inputs.push_back(layers[i]->forward_input(*prev_output));
                 t4d *output_preact = layers[i]->forward_output(*(inputs[i]));

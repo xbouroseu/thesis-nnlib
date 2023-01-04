@@ -304,6 +304,7 @@ template<class T> void Tensor4D<T>::print() {
     printf("\n");
 }
 
+
 template class Tensor4D<double>;
 template class Tensor4D<float>;
 template class Tensor4D<int>;
