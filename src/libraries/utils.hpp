@@ -1,11 +1,9 @@
 #pragma once
-#include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
-#include <boost/log/expressions.hpp>
-#include <ctime>
 
 #define LOG(m) BOOST_LOG_TRIVIAL(m)
-#define XLOG(m) if(m > Neural::log_level) { cout }
+#define CLOG(m) 
+
 #ifdef _OPENACC
 constexpr int IS_OPENACC = 1;
 #include "openacc.h"
@@ -21,12 +19,10 @@ constexpr int IS_OPENACC = 0;
 #define mispresent(_mdata, _n) true
 #endif
 #define hdevicetype 2
-#include <cstddef>
 //hello
 double dur(double);
 
 namespace Neural {
-    int log_level = 0;
     constexpr int device_type_host = 2;
     constexpr int device_type_gpu = 4;
     
