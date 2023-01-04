@@ -22,7 +22,7 @@ constexpr int IS_OPENACC = 0;
 #endif
 #define hdevicetype 2
 #include <cstddef>
-
+//hello
 double dur(double);
 
 namespace Neural {
