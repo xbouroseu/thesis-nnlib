@@ -156,7 +156,8 @@ int main(int argc, char *argv[]) {
     
     // // cout << type_name<decltype(std::function{acc_deviceptr})>() << endl;
     // // cout << type_name<decltype(std::function{Neural::deviceptr})>() << endl;
-
+    BOOST_LOG_TRIVIAL(warning) << "This is warning" << endl;
+    cout << "Log level warning in int: " << (int)(boost::log::trivial::warning) << endl;
     cout << "debug mode = atoi(argv[1])" << endl;
     int debug_mode= atoi(argv[1]);
 
