@@ -25,7 +25,7 @@ namespace Neural {
 
         template<class L, class ... Args>
         void add_layer(Args ...args) {
-            LOG(trace) << "Network::add_layer";
+            LOGV << "Network::add_layer";
             Neural::Layers::Layer *newl;
             Neural::Shape4D prev_sh;          
             

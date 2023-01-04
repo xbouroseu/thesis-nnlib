@@ -1,8 +1,5 @@
 #pragma once
-#include <boost/log/trivial.hpp>
-
-#define LOG(m) BOOST_LOG_TRIVIAL(m)
-#define CLOG(m) 
+#include <plog/Log.h>
 
 #ifdef _OPENACC
 constexpr int IS_OPENACC = 1;
@@ -29,8 +26,7 @@ namespace Neural {
     constexpr bool is_acc() {
         return misacc();
     }
-    
-    void set_log_level(boost::log::trivial::severity_level);
+
     int get_device_type();
     void *deviceptr(void*);
     

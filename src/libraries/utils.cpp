@@ -1,20 +1,9 @@
+#include "utils.hpp"
 #include <cstddef>
 #include <type_traits>
-#include "utils.hpp"
 #include <iostream>
-#include <boost/log/core.hpp>
-#include <boost/log/expressions.hpp>
 
 using namespace std;
-namespace logging = boost::log;
-
-void Neural::set_log_level(logging::trivial::severity_level sv) {
-    cout << "Log level in int: " << sv << endl;
-    logging::core::get()->set_filter
-    (
-        logging::trivial::severity >= sv
-    );
-}
 
 double dur(double start) {
     return (clock()-start)/CLOCKS_PER_SEC;

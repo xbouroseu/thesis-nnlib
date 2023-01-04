@@ -94,8 +94,8 @@ template<class T, int DIM>
 void AddVecDim(Neural::Tensor4D<T> *A, const Neural::Tensor4D<T> &B) {
     Neural::Shape4D a_shape = A->shape(), b_shape = B.shape();
     
-    LOG(debug) << "a_shape: " << a_shape.to_string();
-    LOG(debug) << "b_shape: " << b_shape.to_string();
+    LOGD << "a_shape: " << a_shape.to_string();
+    LOGD << "b_shape: " << b_shape.to_string();
     
     if constexpr(DIM==0) {
         if(!(b_shape[1]==1 && b_shape[2]==1 && b_shape[3]==1)) {

@@ -78,11 +78,11 @@ Shape4D Shape4D::flat(int dim) const {
 }
 
 template<class T> Tensor4D<T>::Tensor4D(Shape4D cshape) :_shape(cshape) {
-    LOG(trace) << "<Tensor4D>" <<  _shape.to_string();
+    LOGV << "<Tensor4D>" <<  _shape.to_string();
     
     this->reserve();
         
-    LOG(trace) << "</Tensor4D>";
+    LOGV << "</Tensor4D>";
 }
 
 template<class T> Tensor4D<T>::Tensor4D(int a, int b, int c, int d) : Tensor4D(Shape4D(a,b,c,d)) {}
@@ -90,10 +90,10 @@ template<class T> Tensor4D<T>::Tensor4D(int a, int b, int c, int d) : Tensor4D(S
 template<class T> Tensor4D<T>::Tensor4D() {}
 
 template<class T> Tensor4D<T>::~Tensor4D() {
-    LOG(trace) << "<~Tensor4D>";
-    LOG(trace) << _shape.to_string();
+    LOGV << "<~Tensor4D>";
+    LOGV << _shape.to_string();
     reset_data();
-    LOG(trace) << ("</~Tensor4D>");
+    LOGV << ("</~Tensor4D>");
 }
 
 //TODO can delegate other ctor (T*, Shape4D) if same functionality?\
@@ -167,11 +167,11 @@ template<class T> bool Tensor4D<T>::is_present_acc() const {
 }
 
 template<class T> void Tensor4D<T>::update_self_acc() {
-    LOG(trace) << "Tensor4D::update_self_acc()";
+    LOGV << "Tensor4D::update_self_acc()";
     
-    LOG(trace) << "Update self is_present_gpu: ";
+    LOGV << "Update self is_present_gpu: ";
     bool is_pr = this->is_present_acc();
-    LOG(trace) << is_pr;
+    LOGV << is_pr;
     int _size = this->size();
     #pragma acc update self(_data[:_size]) if(is_pr)
 }
@@ -269,10 +269,10 @@ template<class T> std::string Tensor4D<T>::to_string() {
 }
 
 template<class T> void Tensor4D<T>::print() {
-    LOG(trace) << "Tensor4D::print()";
+    LOGV << "Tensor4D::print()";
     this->update_self_acc();
     
-    LOG(trace) << _shape.to_string();
+    LOGV << _shape.to_string();
     
     int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
     

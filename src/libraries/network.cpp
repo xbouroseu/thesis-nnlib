@@ -20,12 +20,12 @@ using Neural::Shape4D;
 typedef Tensor4D<double> t4d;
 
 Neural::Network::Network(Shape4D in_sh_pr) : input_shape_proto(Shape4D(-1, in_sh_pr[1], in_sh_pr[2], in_sh_pr[3])) {
-    LOG(trace) << "Network::Network";
-    LOG(trace) << "input_shape_proto: " << input_shape_proto.to_string();
+    LOGV << "Network::Network";
+    LOGV << "input_shape_proto: " << input_shape_proto.to_string();
 }
 
 Network::~Network() {
-    LOG(trace) << "Network destructor";
+    LOGV << "Network destructor";
     for(auto it : layers) {
         delete it;
     }
@@ -50,11 +50,11 @@ Network::~Network() {
 // }
 
 void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> * train_labels, const Tensor4D<double> * valid_dataset, const Tensor4D<int> * valid_labels, int batch_size, bool acc, double learning_rate, string loss_fn) {
-    LOG(trace) << "Network::train | batch_size: " << batch_size;
+    LOGV << "Network::train | batch_size: " << batch_size;
 
     
     Shape4D train_shape = train_dataset->shape(), labels_shape = train_labels->shape();
-    LOG(trace)  << "Train shape: " << train_shape.to_string();
+    LOGV  << "Train shape: " << train_shape.to_string();
     
     int train_num_samples = train_shape[0], train_size = train_dataset->size();
     int train_num_outputs = labels_shape[1];
@@ -69,20 +69,20 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
     /////////////////////////
     {    
         Shape4D batch_data_shape(batch_size, train_shape[1], train_shape[2], train_shape[3]);
-        LOG(trace) << "batch_data_shape = " << batch_data_shape.to_string();
+        LOGV << "batch_data_shape = " << batch_data_shape.to_string();
         batch_data = make_unique<t4d>(batch_data_shape);
         batch_data->create_acc();
     }
     
     {
         Shape4D batch_labels_shape(batch_size, labels_shape[1], labels_shape[2], labels_shape[3]);
-        LOG(trace) << "batch_labels_shape = " << batch_labels_shape.to_string();
+        LOGV << "batch_labels_shape = " << batch_labels_shape.to_string();
         batch_labels = make_unique<Tensor4D<int>>(batch_labels_shape);
         batch_data->create_acc();
     }
     //////////////////////////
     
-    LOG(trace) << "Calling Layer::init";
+    LOGV << "Calling Layer::init";
     for(auto it: layers) {
         it->init();
     }
@@ -91,7 +91,7 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
     double duration;
     clock_t start = clock();
     
-    LOG(info) << "Epoch iterations : " << iters;
+    LOGI << "Epoch iterations : " << iters;
     int e = 1;
     double epoch_loss;
     do {
@@ -101,26 +101,26 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
 
             string fors; 
             sprintf(&fors[0], ">> Step %d, batch_start: %d<< \n",iter, batch_start);
-            LOG(debug) << fors;
+            LOGD << fors;
 
             acc_make_batch<double>(*train_dataset, batch_data.get(),  batch_start); 
-            LOG(debug) << "[batch_data]";
-            LOG(debug) << (batch_data->to_string());
+            LOGD << "[batch_data]";
+            LOGD << (batch_data->to_string());
             
             acc_normalize_img(batch_data.get());
-            LOG(debug) << "[batch_data normalized]";
-            LOG(debug) << batch_data->to_string();           
+            LOGD << "[batch_data normalized]";
+            LOGD << batch_data->to_string();           
             
             acc_make_batch<int>(*train_labels, batch_labels.get(), batch_start);
             
-            LOG(debug) << "[batch_labels]";
-            LOG(debug) << batch_labels->to_string();
-            LOG(debug) << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
+            LOGD << "[batch_labels]";
+            LOGD << batch_labels->to_string();
+            LOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             
             vector<t4d *> inputs, outputs;
             t4d *prev_output = batch_data.get();
 
-            LOG(trace) << "for(int i = 0; i < layers.size(); i++)";
+            LOGV << "for(int i = 0; i < layers.size(); i++)";
             for(int i = 0; i < layers.size(); i++) {
                 inputs.push_back(layers[i]->forward_input(*prev_output));
                 t4d *output_preact = layers[i]->forward_output(*(inputs[i]));
@@ -130,13 +130,13 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
                 prev_output = outputs[i];
             }                
 
-            LOG(debug) << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
+            LOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             
-            LOG(debug) << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";   
+            LOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";   
             
-            LOG(info) << "Calculating loss at output";
+            LOGI << "Calculating loss at output";
             double loss;
-            LOG(debug) << outputs.back()->to_string();
+            LOGD << outputs.back()->to_string();
             unique_ptr<t4d> output_preact_loss(layers.back()->backprop_calc_loss(loss_fn, loss, *outputs.back(), *batch_labels.get()));
             delete outputs.back();
             epoch_loss += loss;
@@ -144,7 +144,7 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
             unique_ptr<t4d> prev_output_loss(layers.back()->backprop(learning_rate, *output_preact_loss.get(), *inputs.back()));
             delete inputs.back();
 
-            LOG(debug) << "Backpropagating";
+            LOGD << "Backpropagating";
             int j = 0;
 
             for(int i = layers.size()-2; i>=0; i--) {
@@ -154,9 +154,9 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
                 delete inputs[i];
             }
 
-            LOG(debug) << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
+            LOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
         }
-        LOG(info) << "Epoch [" << e << "] loss: " << epoch_loss << endl;
+        LOGI << "Epoch [" << e << "] loss: " << epoch_loss << endl;
         
         // //calculate loss over validation set
         // //if it stops dropping then stop
@@ -166,12 +166,12 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
     while( epoch_loss > 0.05f );
     
     duration = dur(start);
-    LOG(info) << "Train duration: " <<  std::setprecision(15) << std::fixed << duration;
-    LOG(info) << "Epoch duration: " <<  std::setprecision(15) << std::fixed << duration/e;
-    LOG(info) << "Step duration: " <<  std::setprecision(15) << std::fixed << duration/(iters * e);
+    LOGI << "Train duration: " <<  std::setprecision(15) << std::fixed << duration;
+    LOGI << "Epoch duration: " <<  std::setprecision(15) << std::fixed << duration/e;
+    LOGI << "Step duration: " <<  std::setprecision(15) << std::fixed << duration/(iters * e);
     clock_t now = clock();
     duration = now - start;
-    LOG(info) << "Time now: " << clock() << " | start: " << start << " | duration: " << duration << " | ms: " << (duration/CLOCKS_PER_SEC) << std::setprecision(15) << std::fixed;
+    LOGI << "Time now: " << clock() << " | start: " << start << " | duration: " << duration << " | ms: " << (duration/CLOCKS_PER_SEC) << std::setprecision(15) << std::fixed;
 }
 
 void hello() {

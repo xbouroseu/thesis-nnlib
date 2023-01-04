@@ -28,6 +28,9 @@
 #include "layer.hpp"
 #include "ops.hpp" 
 #include "utils.hpp"
+#include <plog/Initializers/RollingFileInitializer.h>
+#include <plog/Formatters/TxtFormatter.h>
+#include <plog/Appenders/ColorConsoleAppender.h>
 
 using Neural::Tensor4D;
 using Neural::Shape4D;
@@ -61,7 +64,7 @@ constexpr auto type_name() {
 
 vector<Neural::LabeledData<double>> read_mnist_data() {
     // Load the data
-    LOG(info) << "Reading mnist data transformed";
+    LOGI << "Reading mnist data transformed";
     Tensor4D<double> * original_data = read_mnist_images<double>("data/train-images-idx3-ubyte");
     Tensor4D<int>* original_labels = read_mnist_labels("data/train-labels-idx1-ubyte");
 
@@ -88,9 +91,7 @@ Tensor4D<double> * read_sample_data(string data_path) {
             throw runtime_error("Invalid SAMPLE data file!");
         }
         
-        string pr;
-        printf(&pr[0], "Magic number: %d, num_samples: %d, sample_height: %d, sample_width: %d\n", magic_n, ns, sh, sw);
-        LOG(info) << pr;
+        LOGI.printf("Magic number: %d, num_samples: %d, sample_height: %d, sample_width: %d\n", magic_n, ns, sh, sw);
 
         Tensor4D<double> * _dataset = new Tensor4D<double>(ns, 1, sh, sw);
 
@@ -120,9 +121,7 @@ Tensor4D<int> * read_sample_labels(string data_path) {
             throw runtime_error("Invalid SAMPLE labels file!");
         }
 
-        string pr;
-        sprintf(&pr[0], "Magic number: %d, num_labels\n", magic_n, ns);
-        LOG(info) << pr;
+        LOGI.printf("Magic number: %d, num_labels\n", magic_n, ns);
 
         Tensor4D<int> * _dataset = new Tensor4D<int>(ns, 10, 1, 1);
 
@@ -154,10 +153,12 @@ int main(int argc, char *argv[]) {
     cout << "Neural::is_acc " << Neural::is_acc << endl;
     cout << "Neural::get_device_type() " << Neural::get_device_type() << endl;
     
+    cout << "Init plog" << endl;
+    plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
+    plog::init(plog::verbose, &consoleAppender ); // Initialize logging to the file.
+    
     // // cout << type_name<decltype(std::function{acc_deviceptr})>() << endl;
     // // cout << type_name<decltype(std::function{Neural::deviceptr})>() << endl;
-    BOOST_LOG_TRIVIAL(warning) << "This is warning" << endl;
-    cout << "Log level warning in int: " << (int)(boost::log::trivial::warning) << endl;
     cout << "debug mode = atoi(argv[1])" << endl;
     int debug_mode= atoi(argv[1]);
 
@@ -166,7 +167,7 @@ int main(int argc, char *argv[]) {
 
     vector<int> filter_size_conv1, filter_size_conv2, stride_conv1, stride_conv2;
     int depth_conv1, depth_conv2, num_hidden_nodes, num_outputs;
-
+    int hj = 0;
     if(debug_mode == 1) {
         train_data = read_sample_data("data/sample_data.txt");
         train_labels = read_sample_labels("data/sample_labels.txt");
@@ -181,10 +182,8 @@ int main(int argc, char *argv[]) {
         cout << "cout << train_data->to_string()" << endl;
         cout << train_data->to_string() << endl;
 
-        LOG(trace) << "LOG(info) << train_data->to_string()";
-        
-        LOG(trace) << "CLOG";
-        cout << train_data->to_string() << endl; 
+        cout << "LOGI << train_data->to_string()";
+        LOGI << endl  << train_data->to_string(); 
         
         filter_size_conv1 = {3, 3};
         filter_size_conv2 = {3,3};
@@ -216,33 +215,33 @@ int main(int argc, char *argv[]) {
 
     Network testnet(train_data->shape()); //destructor?
 
-    LOG(trace) << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"same\")";
+    LOGV << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"same\")";
     testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, "same");
    
-    LOG(trace) << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"same\")";
+    LOGV << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"same\")";
     testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, "same");
     
-    LOG(trace) << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
+    LOGV << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
     testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
     
-    LOG(trace) << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")";
+    LOGV << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")";
     testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
     int batch_size;
     if(debug_mode) {
-        LOG(info) << "batch_size = train_data->shape()[0]";
+        LOGI << "batch_size = train_data->shape()[0]";
         batch_size = train_data->shape()[0];
     }
     else {
-        LOG(info) << "batch_size = atoi(argv[2])";
+        LOGI << "batch_size = atoi(argv[2])";
         int batch_size= atoi(argv[2]);
     }
 
-    LOG(info) << "batch_size = " << batch_size;
+    LOGI << "batch_size = " << batch_size;
 
     double learning_rate = 0.05;
     
-    LOG(trace) << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
+    LOGV << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
     testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, true, learning_rate, "CrossEntropy");
 
     return 0;

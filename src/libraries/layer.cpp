@@ -46,12 +46,12 @@ using Neural::Layers::Weighted;
 int Layer::nl = 0;
 
 Layer::Layer(Shape4D &prev_shape_proto, int features, string afn) : prev_shape_proto(Shape4D(-1, prev_shape_proto[1], prev_shape_proto[2], prev_shape_proto[3])), features(features) {
-    LOG(trace) << "Layer::Layer";
+    LOGV << "Layer::Layer";
 
 
-    LOG(trace) << "Generating layer number from " << nl;
+    LOGV << "Generating layer number from " << nl;
     id = ++nl;
-    LOG(trace) << "Generated " << id;
+    LOGV << "Generated " << id;
 
     if (afn == "relu") {
         activation_fn = Neural::Activations::Relu;
@@ -70,55 +70,55 @@ string Layer::gph() {
 }
 
 t4d * Layer::activate(t4d &output_preact) {
-    LOG(trace) << "Activation: " + activation_fn.name();
+    LOGV << "Activation: " + activation_fn.name();
 
     Shape4D output_shape = output_preact.shape();
 
     assert_shape(output_shape, output_shape_proto);
 
-    LOG(trace) << "output = make_unique<t4d>(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")";
+    LOGV << "output = make_unique<t4d>(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")";
     t4d * output = new t4d(output_shape);
     output->create_acc();
 
     // helper_InnerActivate(*output_preact, output, activation_fn);
     activation_fn.apply(output_preact, output);
 
-    LOG(trace) << "[Output]";
-    LOG(trace) << output->to_string();
+    LOGV << "[Output]";
+    LOGV << output->to_string();
 
     return output;
 }
 
 t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output, Tensor4D<int> &labels_batch) {
-    LOG(trace) << "Layer::backprop_calc_loss";
+    LOGV << "Layer::backprop_calc_loss";
     
-    LOG(trace) << "activation_type: " << this->get_activation_name();
+    LOGV << "activation_type: " << this->get_activation_name();
     string activation_type = this->get_activation_name();
 
     Shape4D output_shape = output.shape();
     assert_shape(output_shape, output_shape_proto);
     assert(labels_batch.shape() == output_shape);
 
-    LOG(trace) << "drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")";
+    LOGV << "drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")";
     t4d *drv_error_output_preact = new t4d(output_shape);
     drv_error_output_preact->create_acc();
 
-    LOG(trace) << "Layer::loss getting data pointers";
+    LOGV << "Layer::loss getting data pointers";
     double *output_data = output.data(), *drv_error_output_preact_data = drv_error_output_preact->data();
     int *labels_data = labels_batch.data();
 
     int B = output_shape[0], M = output_shape[1];
 
-    LOG(trace) << "[Output]";
-    LOG(trace) << output.to_string();
+    LOGV << "[Output]";
+    LOGV << output.to_string();
 
-    LOG(trace) << "[Labels]";
-    LOG(trace) << labels_batch.to_string();
+    LOGV << "[Labels]";
+    LOGV << labels_batch.to_string();
 
     int lsize = output_shape.size();
 
     loss_value = 0.0f;
-    LOG(info) << "loss_value = " << loss_value;
+    LOGI << "loss_value = " << loss_value;
 
     if ((loss_fn == "CrossEntropy") && (activation_type == "softmax")) {
         #pragma acc parallel loop reduction(+:loss_value) collapse(2) present(labels_data[:lsize], output_data[:lsize])
@@ -126,7 +126,7 @@ t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output
             for (int j = 0; j < M; j++) {
                 double lblval = labels_data[i * M + j], oval = output_data[i * M + j];
                 double val = lblval * oval;
-                LOG(trace) << "Loss value += " << lblval << " * " << oval << " = " << val;
+                LOGV << "Loss value += " << lblval << " * " << oval << " = " << val;
                 loss_value += val;
             }
         }
@@ -142,32 +142,32 @@ t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output
         }
     }
 
-    LOG(info) << "loss_value = " << loss_value;
+    LOGI << "loss_value = " << loss_value;
     return drv_error_output_preact;
 }
 
 t4d * Layer::backprop_delta_output(t4d &drv_error_output, t4d &output) {
-    LOG(trace) << gph() + "backprop_delta_output";
+    LOGV << gph() + "backprop_delta_output";
 
     Shape4D output_shape = output.shape();
     assert_shape(output_shape, output_shape_proto);
     assert(drv_error_output.shape() == output_shape);
 
     // If not set from somewhere else calc here drv_error_output_preact
-    LOG(trace) << "[drv_error_output]";
-    LOG(trace) << drv_error_output.to_string();
+    LOGV << "[drv_error_output]";
+    LOGV << drv_error_output.to_string();
 
-    LOG(trace) << "[output]";
-    LOG(trace) << output.to_string();
+    LOGV << "[output]";
+    LOGV << output.to_string();
 
-    LOG(trace) << "t4d * drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")";
+    LOGV << "t4d * drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")";
     t4d * drv_error_output_preact = new t4d(output_shape);
     drv_error_output_preact->create_acc();
 
     activation_fn.backward(drv_error_output, output, drv_error_output_preact);
 
-    LOG(trace) << "[drv_error_output_preact]";
-    LOG(trace) << drv_error_output_preact->to_string();
+    LOGV << "[drv_error_output_preact]";
+    LOGV << drv_error_output_preact->to_string();
 
     return drv_error_output_preact;
 }
@@ -176,29 +176,29 @@ Weighted::Weighted(Shape4D &prev_shape_proto, int features, string afn) : Layer(
 }
 
 Weighted::~Weighted() {
-    LOG(trace) << gph() + "destructor";
+    LOGV << gph() + "destructor";
 }
 
 void Weighted::init() {
-    LOG(trace) << gph() + "alloc";
+    LOGV << gph() + "alloc";
 
-    LOG(trace) << "weights = make_unique<t4d>(" << weights_shape.to_string() << ", 1, << " + _acc << "), size: " << weights_shape.size();
+    LOGV << "weights = make_unique<t4d>(" << weights_shape.to_string() << ", 1, << " + _acc << "), size: " << weights_shape.size();
     weights = make_unique<t4d>(weights_shape);
     weights->create_acc();
-    LOG(trace) << "weights rng";
+    LOGV << "weights rng";
     acc_rng(weights.get(), (double)0.1f);
 
-    LOG(trace) << "weights init print";
-    LOG(trace) << weights->to_string();
+    LOGV << "weights init print";
+    LOGV << weights->to_string();
 
-    LOG(trace) << "biases = make_unique<t4d>(" << biases_shape.to_string() << ", 1, << " + _acc << "), size: " << biases_shape.size();
+    LOGV << "biases = make_unique<t4d>(" << biases_shape.to_string() << ", 1, << " + _acc << "), size: " << biases_shape.size();
     biases = make_unique<t4d>(biases_shape);
     biases->create_acc();
-    LOG(trace) << "acc_zeros(biases)";
+    LOGV << "acc_zeros(biases)";
     acc_zeros(biases.get());
 
-    LOG(trace) << "biases init print";
-    LOG(trace) << biases->to_string();
+    LOGV << "biases init print";
+    LOGV << biases->to_string();
 }
 
 t4d * Weighted::backprop(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
@@ -211,14 +211,14 @@ t4d * Weighted::backprop(double learning_rate, t4d &drv_error_output_preact, t4d
 
     acc_mltp(drv_error_weights.get(), mltp);
 
-    LOG(trace) << "acc_add(weights, *drv_error_weights)";
+    LOGV << "acc_add(weights, *drv_error_weights)";
     acc_add(weights.get(), *drv_error_weights.get());
 
-    LOG(trace) << "acc_mltp(drv_error_biases, mltp)";
+    LOGV << "acc_mltp(drv_error_biases, mltp)";
     acc_mltp(drv_error_biases.get(), mltp);
 
     //update
-    LOG(trace) << "acc_add(biases, *drv_error_biases)";
+    LOGV << "acc_add(biases, *drv_error_biases)";
     acc_add(biases.get(),  *drv_error_biases.get());
 
     t4d *prev_drv_error_output = this->backprop_delta_prev_output(drv_error_output_preact, input);
@@ -230,18 +230,18 @@ t4d * Weighted::backprop_delta_biases(t4d &drv_error_output_preact) {
     Shape4D output_shape = drv_error_output_preact.shape();
     assert_shape(output_shape, output_shape_proto);
 
-    LOG(trace) << "drv_error_biases = make_unique<t4d>(" + biases_shape.to_string() + ", 1, " + to_string(_acc) + ")";
+    LOGV << "drv_error_biases = make_unique<t4d>(" + biases_shape.to_string() + ", 1, " + to_string(_acc) + ")";
     t4d * drv_error_biases = new t4d(biases_shape); 
     drv_error_biases->create_acc();
 
-    LOG(trace) << "[drv_error_output_preact]";
-    LOG(trace) << drv_error_output_preact.to_string();
+    LOGV << "[drv_error_output_preact]";
+    LOGV << drv_error_output_preact.to_string();
 
-    LOG(trace) << "acc_accumulate(*drv_error_output_preact, drv_error_biases)";
+    LOGV << "acc_accumulate(*drv_error_output_preact, drv_error_biases)";
     acc_accumulate(drv_error_output_preact, drv_error_biases);
 
-    LOG(trace) << "[drv_error_biases]";
-    LOG(trace) << drv_error_biases->to_string();
+    LOGV << "[drv_error_biases]";
+    LOGV << drv_error_biases->to_string();
 
     double mltp = (1.0f) / drv_error_output_preact.shape()[0];
     acc_mltp(drv_error_biases, mltp);
@@ -265,11 +265,11 @@ Fc::Fc(Shape4D &prev_shape_proto, int features, string activation_fn) : Weighted
 
     weights_shape = Shape4D(input_shape_proto[1], output_shape_proto[1], 1, 1);
     biases_shape = Shape4D(1, output_shape_proto[1], 1, 1);
-    LOG(debug) << "weights_shape = " + weights_shape.to_string();
+    LOGD << "weights_shape = " + weights_shape.to_string();
 }
 
 Fc::~Fc() {
-    LOG(trace) << gph() + " Fc destructor";
+    LOGV << gph() + " Fc destructor";
 }
 
 t4d * Fc::forward_input(t4d &prev_output) {
@@ -293,19 +293,19 @@ t4d * Fc::forward_output(t4d &input) {
 }
 
 t4d * Fc::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
-    LOG(trace) << gph() + "Fc::_backward_weights";
+    LOGV << gph() + "Fc::_backward_weights";
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
     assert_shape(output_shape, output_shape_proto);
-    LOG(trace) << "unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(*input.get()))";
+    LOGV << "unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(*input.get()))";
     unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(input));
-    LOG(trace) << "[input_tranposed]";
-    LOG(trace) << input_tranposed->to_string();
+    LOGV << "[input_tranposed]";
+    LOGV << input_tranposed->to_string();
     
     t4d * drv_error_weights = new t4d(weights->shape());
     drv_error_weights->create_acc();
     // DRV ERROR_WEIGHTS = (DRV ERROR_OUTPUT OP) * INPUT prototype
-    LOG(trace) << "acc_matrix_multiply(*input_tranposed.get(), *drv_error_output_preact, drv_error_weights)";
+    LOGV << "acc_matrix_multiply(*input_tranposed.get(), *drv_error_output_preact, drv_error_weights)";
     acc_matrix_multiply(*input_tranposed.get(), drv_error_output_preact, drv_error_weights);
 
     double mltp = 1.0f/input_shape[0];
@@ -314,25 +314,25 @@ t4d * Fc::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
 }
 
 t4d * Fc::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input) {
-    LOG(trace) << gph() + "Fc::_backward_input";
+    LOGV << gph() + "Fc::_backward_input";
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
     assert_shape(output_shape, output_shape_proto);
 
-    LOG(trace) << "unique_ptr<t4d> weights_transposed(acc_transposed<double,  0, 1>(*weights))";
+    LOGV << "unique_ptr<t4d> weights_transposed(acc_transposed<double,  0, 1>(*weights))";
     unique_ptr<t4d> weights_transposed(acc_transposed<double, 0, 1>(*weights.get()));
     
-    LOG(trace) << "[weights_transposed]";
-    LOG(trace) << weights_transposed->to_string();
+    LOGV << "[weights_transposed]";
+    LOGV << weights_transposed->to_string();
 
     unique_ptr<t4d> drv_error_input = make_unique<t4d>(input_shape);
     drv_error_input->create_acc();
-    LOG(trace) << "acc_matrix_multiply(*drv_error_output_preact, *weights_transposed.get(), drv_error_input)";
+    LOGV << "acc_matrix_multiply(*drv_error_output_preact, *weights_transposed.get(), drv_error_input)";
     acc_matrix_multiply(drv_error_output_preact, *weights_transposed.get(), drv_error_input.get());
 
     t4d * prev_drv_error_output = new t4d(Shape4D(output_shape[0], prev_shape_proto[1], prev_shape_proto[2], prev_shape_proto[3]));
     prev_drv_error_output->create_acc();
-    LOG(trace) << "acc_copy(*drv_error_input, *prev_drv_error_output)";
+    LOGV << "acc_copy(*drv_error_input, *prev_drv_error_output)";
     acc_copy(*drv_error_input.get(), prev_drv_error_output);
 
     return prev_drv_error_output;
@@ -395,7 +395,7 @@ Conv::Conv(Shape4D &prev_shape, int features, string activation_fn, vector<int> 
 }
 
 Conv::~Conv() {
-    LOG(trace) << gph() + "Conv destructor";
+    LOGV << gph() + "Conv destructor";
 }
 
 t4d * Conv::forward_input(t4d &prev_output) {
@@ -430,7 +430,7 @@ t4d * Conv::forward_output(t4d &input) {
 }
 
 t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
-    LOG(trace) << gph() + "_backward_weights";
+    LOGV << gph() + "_backward_weights";
 
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
@@ -440,41 +440,41 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
 
     // TODO pad same tensor? transpose same tensor?
 
-    LOG(trace) << "unique_ptr<t4d> drv_error_output_preact_transposed_flipped_padded(acc_transposed<double, 0, 1>(*drv_error_output_preact))";
+    LOGV << "unique_ptr<t4d> drv_error_output_preact_transposed_flipped_padded(acc_transposed<double, 0, 1>(*drv_error_output_preact))";
     unique_ptr<t4d> drv_error_output_preact_transposed_flipped_padded(acc_transposed<double, 0, 1>(drv_error_output_preact));
     
-    LOG(trace) << "[drv_error_output_preact_transposed]";
-    LOG(trace) << drv_error_output_preact_transposed_flipped_padded->to_string();
+    LOGV << "[drv_error_output_preact_transposed]";
+    LOGV << drv_error_output_preact_transposed_flipped_padded->to_string();
 
-    LOG(trace) << "acc_flip_spatial(drv_error_output_preact_transposed_flipped_padded.get())";
+    LOGV << "acc_flip_spatial(drv_error_output_preact_transposed_flipped_padded.get())";
     acc_flip_spatial(drv_error_output_preact_transposed_flipped_padded.get());
 
-    LOG(trace) << "[drv_error_output_preact_transposed_flipped]";
-    LOG(trace) << drv_error_output_preact_transposed_flipped_padded->to_string();
+    LOGV << "[drv_error_output_preact_transposed_flipped]";
+    LOGV << drv_error_output_preact_transposed_flipped_padded->to_string();
 
-    LOG(trace) << "drv_error_output_preact_transposed_flipped_padded.reset(acc_padded2D_inner(*drv_error_output_preact_transposed_flipped_padded.get(), rev_padding_h - rev_padding_h/2,  rev_padding_w - rev_padding_w/2, rev_padding_h/2,  rev_padding_w/2, 0, 0))";
+    LOGV << "drv_error_output_preact_transposed_flipped_padded.reset(acc_padded2D_inner(*drv_error_output_preact_transposed_flipped_padded.get(), rev_padding_h - rev_padding_h/2,  rev_padding_w - rev_padding_w/2, rev_padding_h/2,  rev_padding_w/2, 0, 0))";
     drv_error_output_preact_transposed_flipped_padded.reset(acc_padded2D_inner(*drv_error_output_preact_transposed_flipped_padded.get(), rev_padding_h - rev_padding_h / 2, rev_padding_w - rev_padding_w / 2, rev_padding_h / 2, rev_padding_w / 2, 0, 0));
     
-    LOG(trace) << "[drv_error_output_preact_transposed_flipped_padded]";
-    LOG(trace) << drv_error_output_preact_transposed_flipped_padded->to_string();
+    LOGV << "[drv_error_output_preact_transposed_flipped_padded]";
+    LOGV << drv_error_output_preact_transposed_flipped_padded->to_string();
 
-    LOG(trace) << "unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(*input))";
+    LOGV << "unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(*input))";
     unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(input));
     
-    LOG(trace) << "[input_transposed]";
-    LOG(trace) << input_transposed_flipped->to_string();
+    LOGV << "[input_transposed]";
+    LOGV << input_transposed_flipped->to_string();
 
-    LOG(trace) << "acc_flip_spatial(input_transposed_flipped)";
+    LOGV << "acc_flip_spatial(input_transposed_flipped)";
     acc_flip_spatial(input_transposed_flipped.get());
 
-    LOG(trace) << "[input_transposed_flipped]";
-    LOG(trace) << input_transposed_flipped->to_string();
+    LOGV << "[input_transposed_flipped]";
+    LOGV << input_transposed_flipped->to_string();
 
     t4d * drv_error_weights = new t4d(weights->shape());
     drv_error_weights->create_acc();
     //TODO check if acc on anything new for return
     // clock_t start=clock();
-    LOG(trace) << "acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input, drv_error_weights, {1, 1})";
+    LOGV << "acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input, drv_error_weights, {1, 1})";
     acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input_transposed_flipped.get(), drv_error_weights, {1, 1});
 
     double mltp = 1.0f/input.shape()[0];
@@ -493,7 +493,7 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
 
 // TODO input, drv_error_output not copies?
 t4d * Conv::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input) {
-    LOG(trace) << gph() + "_backward_input";
+    LOGV << gph() + "_backward_input";
 
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
@@ -501,28 +501,28 @@ t4d * Conv::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input)
 
     // formula is rev_p = 2*(F-1) + (S-1)*(O-1)
     // drv_error_output_preact[B D H2 W2]->drv_error_output_preact[B D (H2 + rev_p[0]) (W2 + rev_p[1]);
-    LOG(trace) << "unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(*drv_error_output_preact,  filter_size[0]-1,  filter_size[0]-1, filter_size[1]-1,  filter_size[1]-1, stride[0]-1, stride[1]-1))";
+    LOGV << "unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(*drv_error_output_preact,  filter_size[0]-1,  filter_size[0]-1, filter_size[1]-1,  filter_size[1]-1, stride[0]-1, stride[1]-1))";
     unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(drv_error_output_preact, filter_size[0] - 1, filter_size[0] - 1, filter_size[1] - 1, filter_size[1] - 1, stride[0] - 1, stride[1] - 1));
 
     // weights[D C F1 F2]->[C D F1 F2], and flip F1, F2 elements
-    LOG(trace) << "unique_ptr<t4d> weights_transposed_flipped(acc_transposed<double, 0, 1>(*weights))";
+    LOGV << "unique_ptr<t4d> weights_transposed_flipped(acc_transposed<double, 0, 1>(*weights))";
     unique_ptr<t4d> weights_transposed_flipped(acc_transposed<double, 0, 1>(*weights.get()));
 
-    LOG(trace) << "acc_flip_spatial(weights_transposed_flipped.get())";
+    LOGV << "acc_flip_spatial(weights_transposed_flipped.get())";
     acc_flip_spatial(weights_transposed_flipped.get());
 
     unique_ptr<t4d> drv_error_input = make_unique<t4d>(input.shape());
     drv_error_input->create_acc();
     // = ERROR_INPUT = ERROR_OUTPUT * WEIGHTS
     
-    LOG(trace) << "acc_convolution2D(*drv_error_output_preact_padded.get(), *weights_transposed_flipped.get(), drv_error_input, {1, 1})";
+    LOGV << "acc_convolution2D(*drv_error_output_preact_padded.get(), *weights_transposed_flipped.get(), drv_error_input, {1, 1})";
     acc_convolution2D(*drv_error_output_preact_padded.get(), *weights_transposed_flipped.get(), drv_error_input.get(), {1, 1});
 
     t4d *prev_drv_error_output = new t4d(Shape4D(input.shape()[0], prev_shape_proto[1], prev_shape_proto[2], prev_shape_proto[3]));
     prev_drv_error_output->create_acc();
     // update prev drv error output act
     // TODO transfer responsibly, maybe no padding was applied etc..no memory traces, no duplicates
-    LOG(trace) << "acc_rev_pad2D(*drv_error_input, *prev_drv_error_output, padding[0], padding[1], padding[2], padding[3])";
+    LOGV << "acc_rev_pad2D(*drv_error_input, *prev_drv_error_output, padding[0], padding[1], padding[2], padding[3])";
     acc_rev_pad2D(*drv_error_input.get(), prev_drv_error_output, padding[0], padding[1], padding[2], padding[3]);
 
     return prev_drv_error_output;

@@ -14,7 +14,6 @@ using Neural::Tensor4D;
 using Neural::LabeledData;
 using Neural::Shape4D;
 using namespace std;
-namespace logging = boost::log;
 
 typedef unsigned char uchar;
 
@@ -73,7 +72,6 @@ Tensor4D<int> * read_mnist_labels(string full_path) {
     typedef unsigned char uchar;
 
     ifstream file(full_path, ios::binary);
-
     if(file.is_open()) {
         int magic_number = 0, number_of_labels;
         file.read((char *)&magic_number, sizeof(magic_number));
@@ -113,7 +111,7 @@ Tensor4D<int> * read_mnist_labels(string full_path) {
 
 template<class T>
 vector<LabeledData<T>> split_dataset(Tensor4D<T> * original_data , Tensor4D<int> *original_labels, float percentile) {
-    LOG(trace) << "split_dataset";  
+    LOGV << "split_dataset";  
     Shape4D data_shape = original_data->shape(), labels_shape = original_labels->shape();
 
     assert(data_shape[0]==labels_shape[0]);
@@ -151,7 +149,7 @@ vector<LabeledData<T>> split_dataset(Tensor4D<T> * original_data , Tensor4D<int>
         }
     }
 
-    LOG(trace) << "/split_data";
+    LOGV << "/split_data";
     return vector<LabeledData<T>>{LabeledData<T>(train_data, train_labels), LabeledData<T>(valid_data, valid_labels)};
 
 }
