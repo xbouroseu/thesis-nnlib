@@ -46,7 +46,7 @@ using Neural::Layers::Weighted;
 int Layer::nl = 0;
 
 Layer::Layer(Shape4D prev_shape, int features, string afn) : prev_shape_proto(Shape4D(-1, prev_shape[1], prev_shape[2], prev_shape[3])), features(features) {
-    LOGV << "Layer::Layer";
+    LOGD << "Layer::Layer";
 
     LOGD << "Layer::prev_shape: " << prev_shape.to_string() << ", prev_shape_proto: " << this->prev_shape_proto.to_string();
     LOGD << "Generating layer number from " << nl;
@@ -69,8 +69,8 @@ string Layer::gph() {
     return ret;
 }
 
-t4d * Layer::activate(t4d &output_preact) {
-    LOGV << "Activation: " + activation_fn.name();
+t4d * Layer::forward_activate(t4d &output_preact) {
+    LOGD << "Activation: " + activation_fn.name();
 
     Shape4D output_shape = output_preact.shape();
 
@@ -83,15 +83,10 @@ t4d * Layer::activate(t4d &output_preact) {
     // helper_InnerActivate(*output_preact, output, activation_fn);
     activation_fn.apply(output_preact, output);
 
-    IF_PLOG(plog::debug) {
-        LOGD << "[Output]";
-        cout << output->to_string() << endl;
-    }
-
     return output;
 }
 
-t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output, Tensor4D<int> &labels_batch) {
+t4d * Layer::backprop_calc_drv_error_output_preact(string loss_fn, double &loss_value, t4d & output, Tensor4D<int> &labels_batch) {
     LOGV << "Layer::backprop_calc_loss";
     
     LOGV << "activation_type: " << this->get_activation_name();
@@ -127,18 +122,20 @@ t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output
     LOGD << "loss_value = " << loss_value;
 
     if ((loss_fn == "CrossEntropy") && (activation_type == "softmax")) {
+        //calculating loss
         #pragma acc parallel loop reduction(+:loss_value) collapse(2) present(labels_data[:lsize], output_data[:lsize])
         for (int i = 0; i < B; i++) {
             for (int j = 0; j < M; j++) {
                 double lblval = labels_data[i * M + j], oval = output_data[i * M + j];
                 double val = lblval * oval;
-                LOGV << "Loss value += " << lblval << " * " << oval << " = " << val;
+                LOGD << "Loss value += " << lblval << " * " << oval << " = " << val;
                 loss_value += val;
             }
         }
 
         loss_value *= -1;
 
+        //skiping de-derivation
         #pragma acc parallel loop collapse(2) present(labels_data[:lsize], output_data[:lsize], drv_error_output_preact_data[:lsize])
         for (int i = 0; i < B; i++) {
             for (int j = 0; j < M; j++) {
@@ -152,7 +149,7 @@ t4d * Layer::backprop_calc_loss(string loss_fn, double &loss_value, t4d & output
     return drv_error_output_preact;
 }
 
-t4d * Layer::backprop_delta_output(t4d &drv_error_output, t4d &output) {
+t4d * Layer::backprop_calc_drv_error_output_preact(t4d &drv_error_output, t4d &output) {
     LOGV << gph() + "backprop_delta_output";
 
     Shape4D output_shape = output.shape();
@@ -170,7 +167,6 @@ t4d * Layer::backprop_delta_output(t4d &drv_error_output, t4d &output) {
         LOGD << "[output]";
         cout << output.to_string() << endl;
     }
-
 
     LOGV << "t4d * drv_error_output_preact = new t4d(" + output_shape.to_string() + ", 1, " + to_string(_acc) + ")";
     t4d * drv_error_output_preact = new t4d(output_shape);
@@ -194,7 +190,7 @@ Weighted::~Weighted() {
 }
 
 void Weighted::init() {
-    LOGV << gph() + "alloc";
+    LOGD << gph() + " init";
 
     LOGV << "weights = make_unique<t4d>(" << weights_shape.to_string() << ", 1, << " + _acc << "), size: " << weights_shape.size();
     weights = make_unique<t4d>(weights_shape);
@@ -219,11 +215,11 @@ void Weighted::init() {
     }
 }
 
-t4d * Weighted::backprop(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
+void Weighted::backprop_update(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
     Shape4D output_shape = drv_error_output_preact.shape(), input_shape = input.shape();
     assert_shape(output_shape, output_shape_proto);
     assert_shape(input_shape, input_shape_proto);
-    unique_ptr<t4d> drv_error_weights(this->backprop_delta_weights(drv_error_output_preact, input)), drv_error_biases(this->backprop_delta_biases(drv_error_output_preact));
+    unique_ptr<t4d> drv_error_weights(this->backprop_calc_drv_error_weights(drv_error_output_preact, input)), drv_error_biases(this->backprop_calc_drv_error_biases(drv_error_output_preact));
 
     double mltp = -1.0f * learning_rate;
 
@@ -238,13 +234,9 @@ t4d * Weighted::backprop(double learning_rate, t4d &drv_error_output_preact, t4d
     //update
     LOGV << "acc_add(biases, *drv_error_biases)";
     acc_add(biases.get(),  *drv_error_biases.get());
-
-    t4d *prev_drv_error_output = this->backprop_delta_prev_output(drv_error_output_preact, input);
-
-    return prev_drv_error_output;
 }
 
-t4d * Weighted::backprop_delta_biases(t4d &drv_error_output_preact) {
+t4d * Weighted::backprop_calc_drv_error_biases(t4d &drv_error_output_preact) {
     Shape4D output_shape = drv_error_output_preact.shape();
     assert_shape(output_shape, output_shape_proto);
 
@@ -261,12 +253,18 @@ t4d * Weighted::backprop_delta_biases(t4d &drv_error_output_preact) {
     acc_accumulate(drv_error_output_preact, drv_error_biases);
 
     IF_PLOG(plog::debug) {
-        LOGD << "[drv_error_biases]";
+        LOGD << "[drv_error_biases-non_normalized]";
         cout << drv_error_biases->to_string() << endl;
     }
 
     double mltp = (1.0f) / drv_error_output_preact.shape()[0];
+    LOGD << "Normalizing biases by 1/" << drv_error_output_preact.shape()[0] << " = " << mltp;
     acc_mltp(drv_error_biases, mltp);
+    
+    IF_PLOG(plog::debug) {
+        LOGD << "[drv_error_biases]";
+        cout << drv_error_biases->to_string() << endl;
+    }  
 
     return drv_error_biases;
 }
@@ -296,7 +294,7 @@ Fc::~Fc() {
     LOGV << gph() + " Fc destructor";
 }
 
-t4d * Fc::forward_input(t4d &prev_output) {
+t4d * Fc::forward_calc_input(t4d &prev_output) {
     Shape4D prev_shape = prev_output.shape();
     assert_shape(prev_shape, prev_shape_proto);
 
@@ -306,21 +304,36 @@ t4d * Fc::forward_input(t4d &prev_output) {
     return input;
 }
 
-t4d * Fc::forward_output(t4d &input) {
+t4d * Fc::forward_calc_output_preact(t4d &input) {
     Shape4D input_shape = input.shape();
     assert_shape(input_shape, input_shape_proto);
     t4d * output_preact = new t4d(input_shape[0], output_shape_proto[1], output_shape_proto[2], output_shape_proto[3]);
     output_preact->create_acc();
+
+    IF_PLOG(plog::debug) {
+        LOGD << "output_preact = input x weights";
+        LOGD << "weights";
+        cout << weights->to_string() << endl;
+    }
+
     acc_matrix_multiply(input, *weights.get(), output_preact);
+
+    IF_PLOG(plog::debug) {
+        LOGD << "output_preact = output_preact + biases";
+        LOGD << "biases";
+        cout << biases->to_string() << endl;
+    }
+
     AddVecDim<double, 1>(output_preact, *biases.get());
     return output_preact;
 }
 
-t4d * Fc::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
+t4d * Fc::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &input) {
     LOGV << gph() + "Fc::_backward_weights";
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
     assert_shape(output_shape, output_shape_proto);
+
     LOGV << "unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(*input.get()))";
     unique_ptr<t4d> input_tranposed(acc_transposed<double, 0, 1>(input));
     
@@ -340,7 +353,7 @@ t4d * Fc::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
     return drv_error_weights;
 }
 
-t4d * Fc::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input) {
+t4d * Fc::backprop_calc_drv_error_prev_output(t4d &drv_error_output_preact, t4d &input) {
     LOGV << gph() + "Fc::_backward_input";
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
@@ -430,7 +443,7 @@ Conv::~Conv() {
     LOGV << gph() + "Conv destructor";
 }
 
-t4d * Conv::forward_input(t4d &prev_output) {
+t4d * Conv::forward_calc_input(t4d &prev_output) {
     Shape4D prev_shape = prev_output.shape();
     assert_shape(prev_shape, prev_shape_proto);
 
@@ -448,20 +461,29 @@ t4d * Conv::forward_input(t4d &prev_output) {
     return input;
 }
 
-t4d * Conv::forward_output(t4d &input) {
+t4d * Conv::forward_calc_output_preact(t4d &input) {
     Shape4D input_shape = input.shape();
     assert_shape(input_shape, input_shape_proto);
 
     t4d *output_preact = new t4d(input_shape[0], output_shape_proto[1], output_shape_proto[2], output_shape_proto[3]);
     output_preact->create_acc();
 
+    IF_PLOG(plog::debug) {
+        LOGD << "output_preact = input x(conv) weights";
+        LOGD << "weights";
+        cout << weights->to_string() << endl;
+    }
     acc_convolution2D(input, *weights.get(), output_preact, stride);
-
+    IF_PLOG(plog::debug) {
+        LOGD << "output_preact = output_preact + biases";
+        LOGD << "biases";
+        cout << biases->to_string() << endl;
+    }
     AddVecDim<double, 1>(output_preact, *biases.get());
     return output_preact;
 }
 
-t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
+t4d * Conv::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &input) {
     LOGV << gph() + "_backward_weights";
 
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
@@ -495,6 +517,7 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
         LOGD << "[drv_error_output_preact_transposed_flipped_padded]";
         cout << drv_error_output_preact_transposed_flipped_padded->to_string() << endl;
     }
+
     LOGV << "unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(*input))";
     unique_ptr<t4d> input_transposed_flipped(acc_transposed<double, 0, 1>(input));
     
@@ -502,6 +525,7 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
         LOGD << "[input_transposed]";
         cout << input_transposed_flipped->to_string() << endl;
     }
+
     LOGV << "acc_flip_spatial(input_transposed_flipped)";
     acc_flip_spatial(input_transposed_flipped.get());
 
@@ -509,6 +533,7 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
         LOGD << "[input_transposed_flipped]";
         cout << input_transposed_flipped->to_string() << endl;
     }
+
     t4d * drv_error_weights = new t4d(weights->shape());
     drv_error_weights->create_acc();
     //TODO check if acc on anything new for return
@@ -516,9 +541,16 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
     LOGV << "acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input, drv_error_weights, {1, 1})";
     acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input_transposed_flipped.get(), drv_error_weights, {1, 1});
 
+    IF_PLOG(plog::debug) {
+        PLOGD << "[drv_error_weights_non_normalized]";
+        cout << drv_error_weights->to_string();
+    }
     double mltp = 1.0f/input.shape()[0];
     acc_mltp(drv_error_weights, mltp);
-
+    IF_PLOG(plog::debug) {
+        PLOGD << "[drv_error_weights]";
+        cout << drv_error_weights->to_string();
+    }
     return drv_error_weights;
     // cout << "acc_convolution2D backward duration: " << dur(start) << std::setprecision(15) << std::fixed << endl;
     // Shape4D in_s = drv_error_output_preact_transposed_flipped_padded->shape(), out_s = drv_error_weights->shape(), w_s = input_transposed_flipped->shape();
@@ -531,7 +563,7 @@ t4d * Conv::backprop_delta_weights(t4d &drv_error_output_preact, t4d &input) {
 }
 
 // TODO input, drv_error_output not copies?
-t4d * Conv::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input) {
+t4d * Conv::backprop_calc_drv_error_prev_output(t4d &drv_error_output_preact, t4d &input) {
     LOGV << gph() + "_backward_input";
 
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
@@ -542,21 +574,34 @@ t4d * Conv::backprop_delta_prev_output(t4d &drv_error_output_preact, t4d &input)
     // drv_error_output_preact[B D H2 W2]->drv_error_output_preact[B D (H2 + rev_p[0]) (W2 + rev_p[1]);
     LOGV << "unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(*drv_error_output_preact,  filter_size[0]-1,  filter_size[0]-1, filter_size[1]-1,  filter_size[1]-1, stride[0]-1, stride[1]-1))";
     unique_ptr<t4d> drv_error_output_preact_padded(acc_padded2D_inner(drv_error_output_preact, filter_size[0] - 1, filter_size[0] - 1, filter_size[1] - 1, filter_size[1] - 1, stride[0] - 1, stride[1] - 1));
-
+    IF_PLOG(plog::debug) {
+        PLOGD << "[drv_error_output_preact_padded]";
+        cout << drv_error_output_preact_padded->to_string() << endl;
+    }
     // weights[D C F1 F2]->[C D F1 F2], and flip F1, F2 elements
     LOGV << "unique_ptr<t4d> weights_transposed_flipped(acc_transposed<double, 0, 1>(*weights))";
     unique_ptr<t4d> weights_transposed_flipped(acc_transposed<double, 0, 1>(*weights.get()));
+    IF_PLOG(plog::debug) {
+        PLOGD << "[weights_transposed]";
+        cout << weights_transposed_flipped->to_string() << endl;
+    }
 
     LOGV << "acc_flip_spatial(weights_transposed_flipped.get())";
     acc_flip_spatial(weights_transposed_flipped.get());
-
+    IF_PLOG(plog::debug) {
+        PLOGD << "[weights_transposed_flipped]";
+        cout << weights_transposed_flipped->to_string() << endl;
+    }
     unique_ptr<t4d> drv_error_input = make_unique<t4d>(input.shape());
     drv_error_input->create_acc();
     // = ERROR_INPUT = ERROR_OUTPUT * WEIGHTS
     
     LOGV << "acc_convolution2D(*drv_error_output_preact_padded.get(), *weights_transposed_flipped.get(), drv_error_input, {1, 1})";
     acc_convolution2D(*drv_error_output_preact_padded.get(), *weights_transposed_flipped.get(), drv_error_input.get(), {1, 1});
-
+    IF_PLOG(plog::debug) {
+        PLOGD << "[drv_error_input]";
+        cout << drv_error_input->to_string() << endl;
+    }
     t4d *prev_drv_error_output = new t4d(Shape4D(input.shape()[0], prev_shape_proto[1], prev_shape_proto[2], prev_shape_proto[3]));
     prev_drv_error_output->create_acc();
     // update prev drv error output act

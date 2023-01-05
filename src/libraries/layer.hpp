@@ -38,14 +38,14 @@ namespace Neural::Layers {
         Shape4D get_output_shape_proto() { return output_shape_proto; }
         virtual void init() = 0;
 
-        virtual Neural::Tensor4D<double> * forward_input(Neural::Tensor4D<double> &) = 0;
-        virtual Neural::Tensor4D<double> * forward_output(Neural::Tensor4D<double> &) = 0;
-        Neural::Tensor4D<double> * activate(Neural::Tensor4D<double> &);
+        virtual Neural::Tensor4D<double> * forward_calc_input(Neural::Tensor4D<double> &) = 0;
+        virtual Neural::Tensor4D<double> * forward_calc_output_preact(Neural::Tensor4D<double> &) = 0;
+        Neural::Tensor4D<double> * forward_activate(Neural::Tensor4D<double> &);
 
-        Neural::Tensor4D<double> * backprop_calc_loss(std::string, double &, Neural::Tensor4D<double> &, Neural::Tensor4D<int> &);
-        Neural::Tensor4D<double> * backprop_delta_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
-        virtual Neural::Tensor4D<double> * backprop_delta_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
-        virtual Neural::Tensor4D<double> * backprop(double, Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
+        Neural::Tensor4D<double> * backprop_calc_drv_error_output_preact(std::string, double &, Neural::Tensor4D<double> &, Neural::Tensor4D<int> &);
+        Neural::Tensor4D<double> * backprop_calc_drv_error_output_preact(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        virtual Neural::Tensor4D<double> * backprop_calc_drv_error_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
+        virtual void backprop_update(double, Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
     };
     
     class BatchNormal : public Layer {
@@ -65,9 +65,9 @@ namespace Neural::Layers {
 
         void init();
         
-        Neural::Tensor4D<double> * backprop(double, Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
-        virtual Neural::Tensor4D<double> * backprop_delta_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
-        Neural::Tensor4D<double> * backprop_delta_biases(Neural::Tensor4D<double> &);
+        void backprop_update(double, Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        virtual Neural::Tensor4D<double> * backprop_calc_drv_error_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &) = 0;
+        Neural::Tensor4D<double> * backprop_calc_drv_error_biases(Neural::Tensor4D<double> &);
     };
     
     class Fc: public Weighted {
@@ -76,11 +76,11 @@ namespace Neural::Layers {
         Fc(Neural::Shape4D , int, std::string);
         ~Fc();
         
-        Neural::Tensor4D<double> * forward_input(Neural::Tensor4D<double> &);
-        Neural::Tensor4D<double> * forward_output(Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * forward_calc_input(Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * forward_calc_output_preact(Neural::Tensor4D<double> &);
 
-        Neural::Tensor4D<double> * backprop_delta_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
-        Neural::Tensor4D<double> * backprop_delta_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);  
+        Neural::Tensor4D<double> * backprop_calc_drv_error_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * backprop_calc_drv_error_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);  
     };
     
     class Conv: public Weighted {
@@ -91,11 +91,11 @@ namespace Neural::Layers {
         std::string padding_type{""};
 
     protected:
-        Neural::Tensor4D<double> * forward_input(Neural::Tensor4D<double> &);
-        Neural::Tensor4D<double> * forward_output(Neural::Tensor4D<double> &);
+       Neural::Tensor4D<double> * forward_calc_input(Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * forward_calc_output_preact(Neural::Tensor4D<double> &);
 
-        Neural::Tensor4D<double> * backprop_delta_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
-        Neural::Tensor4D<double> * backprop_delta_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);  
+        Neural::Tensor4D<double> * backprop_calc_drv_error_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * backprop_calc_drv_error_prev_output(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);  
         
         bool is_padded() { return padding[0] != 0 || padding[1] != 0 || padding[2]!=0 || padding[3]!=0; }
 

@@ -127,13 +127,33 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
             vector<t4d *> inputs, outputs;
             t4d *prev_output = batch_data.get();
 
-            LOGD << "for(int i = 0; i < layers.size(); i++)";
             for(int i = 0; i < layers.size(); i++) {
-                inputs.push_back(layers[i]->forward_input(*prev_output));
-                t4d *output_preact = layers[i]->forward_output(*(inputs[i]));
-                t4d *output = layers[i]->activate(*output_preact);
-                outputs.push_back(output);
+                PLOGD.printf("Forward Layer %d\n", i);
+                IF_PLOG(plog::debug) {
+                    LOGD << "Layer " << i << " prev_output";
+                    cout << prev_output->to_string() << endl;
+                }
+                
+                t4d * tinp = layers[i]->forward_calc_input(*prev_output);
+                IF_PLOG(plog::debug) {
+                    LOGD << "Layer " << i << " input";
+                    cout << tinp->to_string() << endl;
+                }
+                inputs.push_back(tinp);
+                
+                t4d *output_preact = layers[i]->forward_calc_output_preact(*(inputs[i]));
+                IF_PLOG(plog::debug) {
+                    LOGD << "Layer " << i << " output_preact";
+                    cout << output_preact->to_string() << endl;
+                }
+                
+                t4d *output = layers[i]->forward_activate(*output_preact);
                 delete output_preact;
+                IF_PLOG(plog::debug) {
+                    LOGD << "Layer " << i << " output";
+                    cout << output->to_string() << endl;
+                }
+                outputs.push_back(output);
                 prev_output = outputs[i];
             }                
 
@@ -141,23 +161,33 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
             
             LOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";   
             
-            LOGI << "Calculating loss at output";
-            double loss;
-            LOGD << outputs.back()->to_string();
-            unique_ptr<t4d> output_preact_loss(layers.back()->backprop_calc_loss(loss_fn, loss, *outputs.back(), *batch_labels.get()));
-            delete outputs.back();
-            epoch_loss += loss;
-
-            unique_ptr<t4d> prev_output_loss(layers.back()->backprop(learning_rate, *output_preact_loss.get(), *inputs.back()));
-            delete inputs.back();
-
             LOGD << "Backpropagating";
-            int j = 0;
+            double loss;
+            unique_ptr<t4d> drv_error_output_preact, drv_error_prev_output;
 
-            for(int i = layers.size()-2; i>=0; i--) {
-                output_preact_loss.reset(layers[i]->backprop_delta_output(*prev_output_loss.get(), *(outputs[i])));
+            for(int i = layers.size()-1; i>=0; i--) {
+                PLOGD.printf("Backward Layer %d\n", i);
+                IF_PLOG(plog::debug) {
+                    PLOGD << "Output";
+                    cout << outputs[i]->to_string() << endl;
+                }
+                if(i==(layers.size()-1)) {
+                    drv_error_output_preact.reset(layers[i]->backprop_calc_drv_error_output_preact(loss_fn, loss, *(outputs[i]), *batch_labels.get()));
+                    LOGD << "Epoch loss: " << epoch_loss << " += " << loss;
+                    epoch_loss += loss;
+                }
+                else {
+                    drv_error_output_preact.reset(layers[i]->backprop_calc_drv_error_output_preact(*drv_error_prev_output.get(), *(outputs[i])));
+                }
                 delete outputs[i];
-                prev_output_loss.reset(layers[i]->backprop(learning_rate, *output_preact_loss.get(), *inputs[i]));
+                IF_PLOG(plog::debug) {
+                    PLOGD << "drv_error_output_preact";
+                    cout << drv_error_output_preact->to_string() << endl;
+                }
+
+                layers[i]->backprop_update(learning_rate, *drv_error_output_preact.get(), *inputs[i]);
+
+                drv_error_prev_output.reset(layers[i]->backprop_calc_drv_error_prev_output(*drv_error_output_preact.get(), *inputs[i]));
                 delete inputs[i];
             }
 
