@@ -1,7 +1,6 @@
 {
     "name": "HPC22.3_work",
     "image": "sirmihawk/thesis:hpc22.3_clean_plog",
-    "runArgs": ["--gpus all"],
-    "containerUser": "dockeruser"
+    "runArgs": ["--gpus all"]
 }
 
