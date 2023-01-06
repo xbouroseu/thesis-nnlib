@@ -128,7 +128,7 @@ t4d * Layer::backprop_calc_drv_error_output_preact(string loss_fn, double &loss_
             for (int j = 0; j < M; j++) {
                 double lblval = labels_data[i * M + j], oval = output_data[i * M + j];
                 double val = lblval * oval;
-                LOGD << "Loss value += " << lblval << " * " << oval << " = " << val;
+                // LOGD << "Loss value += " << lblval << " * " << oval << " = " << val;
                 loss_value += val;
             }
         }

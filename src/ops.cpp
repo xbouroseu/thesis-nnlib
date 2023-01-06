@@ -275,9 +275,9 @@ void acc_flip_spatial(Tensor4D<T> *input) {
                 for(int l = 0; l < (D/2); l++) {
                     T tmp = in_data[(i*B + j)*C*D + k*D + l];
                     
-                    IF_PLOG(plog::verbose) {
-                        LOGD.printf("in_data[%d, %d, %d, %d] %+11.5f <-> in_data[%d, %d, %d, %d] %+11.5f\n", i, j, k, l, tmp, i, j, C-k-1, D-l-1, in_data[ (i*B + j)*C*D + (C-k-1)*D + (D-l-1)]);
-                    }
+                    // IF_PLOG(plog::verbose) {
+                    //     LOGD.printf("in_data[%d, %d, %d, %d] %+11.5f <-> in_data[%d, %d, %d, %d] %+11.5f\n", i, j, k, l, tmp, i, j, C-k-1, D-l-1, in_data[ (i*B + j)*C*D + (C-k-1)*D + (D-l-1)]);
+                    // }
                     
                     in_data[ (i*B + j)*C*D +     k*D +    l ] = in_data[ (i*B + j)*C*D + (C-k-1)*D + (D-l-1)];
                     in_data[ (i*B + j)*C*D + (C-k-1)*D + (D-l-1)] = tmp;
@@ -317,20 +317,20 @@ void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T>
         for(int j = 0; j < M; j++) {
             T csumd = 0.0f;
             
-            IF_PLOG(plog::debug) {
-                printf("Out [%d, %d] = ", i, j);
-            }
+            // IF_PLOG(plog::debug) {
+            //     printf("Out [%d, %d] = ", i, j);
+            // }
                 
             #pragma acc loop seq reduction(+:csumd)
             for(int t = 0; t < K; t++) {
-                IF_PLOG(plog::debug) {
-                    cout << " + [" << a_data[i*K + t] << " x " << b_data[t*M + j] << "]";
-                }
+                // IF_PLOG(plog::debug) {
+                //     cout << " + [" << a_data[i*K + t] << " x " << b_data[t*M + j] << "]";
+                // }
                 csumd += a_data[i*K + t] * b_data[t*M + j];
             }
-            IF_PLOG(plog::debug) {
-                cout << " = " << csumd << endl;
-            }
+            // IF_PLOG(plog::debug) {
+            //     cout << " = " << csumd << endl;
+            // }
             c_data[i*M + j] = csumd;
         }
     }
@@ -383,18 +383,18 @@ void acc_convolution2D(const Tensor4D<T> &input, const Tensor4D<T> &filters, Ten
             for(int oh = 0; oh < out_rows; oh++) {
                 for(int ow = 0; ow < out_cols; ow++) {
                     T bdhwsum = 0.0f;
-                    IF_PLOG(plog::debug) {
-                        printf("Out[%d, %d, %d, %d] = ", i, och, oh, ow);
-                    }
+                    // IF_PLOG(plog::debug) {
+                    //     printf("Out[%d, %d, %d, %d] = ", i, och, oh, ow);
+                    // }
                     
                     #pragma acc loop seq collapse(3) reduction(+:bdhwsum)
                     for(int ich = 0; ich < in_channels; ich++) {
     //                         double csum = 0.0f;
                         for(int fi = 0; fi < filter_height; fi++) {
                             for(int fj = 0; fj < filter_width; fj++) {
-                                IF_PLOG(plog::debug) {
-                                    cout << " + [" << in_data[ (i*in_channels + ich)*in_rows*in_cols + (oh*stride_r + fi)*in_cols + ow*stride_c + fj ] << " x " << filter_data[ (och*in_channels + ich)*filter_height*filter_width + fi*filter_width + fj ] << "]";
-                                }
+                                // IF_PLOG(plog::debug) {
+                                //     cout << " + [" << in_data[ (i*in_channels + ich)*in_rows*in_cols + (oh*stride_r + fi)*in_cols + ow*stride_c + fj ] << " x " << filter_data[ (och*in_channels + ich)*filter_height*filter_width + fi*filter_width + fj ] << "]";
+                                // }
                                 
                                 bdhwsum += in_data[ (i*in_channels + ich)*in_rows*in_cols + (oh*stride_r + fi)*in_cols + ow*stride_c + fj ] * filter_data[ (och*in_channels + ich)*filter_height*filter_width + fi*filter_width + fj ];
                             }
@@ -403,9 +403,9 @@ void acc_convolution2D(const Tensor4D<T> &input, const Tensor4D<T> &filters, Ten
                     }
                     
                     out_data[(i*out_channels + och)*out_cols*out_rows + oh*out_cols + ow] = bdhwsum;
-                    IF_PLOG(plog::debug) {
-                        printf(" = %+011.5f\n", bdhwsum);
-                    }
+                    // IF_PLOG(plog::debug) {
+                    //     printf(" = %+011.5f\n", bdhwsum);
+                    // }
                 }
             }
         }
@@ -653,7 +653,7 @@ void acc_pad2D_inner(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padd
     const T *pre_pad_data = pre_pad.data();
     T *post_pad_data = post_pad->data();
     
-    LOGD << ("Entering loop collapse(4)");
+    LOGV << ("Entering loop collapse(4)");
     #pragma acc data present(pre_pad_data[:(B*C*M*N)], post_pad_data[:(B*C*padded_N*padded_M)])
     {
     acc_zeros(post_pad);
@@ -663,14 +663,14 @@ void acc_pad2D_inner(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padd
             for(int i = 0; i < N; i++) {
                 for(int j = 0; j < M; j++) {
                    
-                    IF_PLOG(plog::debug) {
-                        printf("Post_pad[%d, %d, %d, %d] = Pre_pad[%d, %d, %d, %d](%+11.5f)", b, c, i+padding_top, j+padding_left, b, c, i, j, pre_pad_data[b*C*M*N + c*M*N + i*M + j]);
-                    }
+                    // IF_PLOG(plog::debug) {
+                    //     printf("Post_pad[%d, %d, %d, %d] = Pre_pad[%d, %d, %d, %d](%+11.5f)", b, c, i+padding_top, j+padding_left, b, c, i, j, pre_pad_data[b*C*M*N + c*M*N + i*M + j]);
+                    // }
                     
                     post_pad_data[b*padded_N*padded_M * C + c*padded_N*padded_M + (i+padding_top + i*padding_inner_rows)*padded_M + (j + padding_left + j*padding_inner_columns)] = pre_pad_data[b*C*M*N + c*M*N + i*M + j];
-                    IF_PLOG(plog::debug) {
-                        printf(" = %+11.5f\n", post_pad_data[b*padded_N*padded_M * C + c*padded_N*padded_M + (i+padding_top + i*padding_inner_rows)*padded_M + (j + padding_left + j*padding_inner_columns)]);
-                    }
+                    // // IF_PLOG(plog::debug) {
+                    //     printf(" = %+11.5f\n", post_pad_data[b*padded_N*padded_M * C + c*padded_N*padded_M + (i+padding_top + i*padding_inner_rows)*padded_M + (j + padding_left + j*padding_inner_columns)]);
+                    // // }
                 }
             }
         }
@@ -695,10 +695,9 @@ Tensor4D<T>* acc_padded2D_inner(const Tensor4D<T> &pre_pad, int padding_top, int
     Shape4D pre_pad_shape = pre_pad.shape();
     int B = pre_pad_shape[0], C = pre_pad_shape[1], N = pre_pad_shape[2], M = pre_pad_shape[3];
     
-    
     Tensor4D<T> *ret = new Tensor4D<T>(B, C, N + padding_top + padding_bottom + (N-1)*padding_inner_rows, M + padding_left + padding_right + (M-1)*padding_inner_columns);
     ret->create_acc();
-    LOGD << ("acc_pad2D_inner(pre_pad, ret, padding_top, padding_bottom, padding_left, padding_right, padding_inner_rows, padding_inner_columns)");
+    LOGV << ("acc_pad2D_inner(pre_pad, ret, padding_top, padding_bottom, padding_left, padding_right, padding_inner_rows, padding_inner_columns)");
     
     acc_pad2D_inner(pre_pad, ret, padding_top, padding_bottom, padding_left, padding_right, padding_inner_rows, padding_inner_columns);
     
