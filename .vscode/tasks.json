@@ -30,8 +30,6 @@
                 "../bin/tensor.o",
                 "../bin/utils.o",
                 "../bin/ops.o",
-                "/lib/x86_64-linux-gnu/libboost_log.so",
-                "/lib/x86_64-linux-gnu/libpthread.so",
                 "-acc",
                 "-Minfo"
             ],
@@ -57,7 +55,6 @@
                 "-I/usr/local/include/opencv4",
                 "-Ilibraries",
                 "-Mcudalib=curand",
-                "-DBOOST_LOG_DYN_LINK",
                 "${input:acc_level}",
                 "${input:misc_input}"
             ],
