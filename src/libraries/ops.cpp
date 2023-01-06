@@ -97,17 +97,8 @@ void generateNormal(T *data,  int n,  T mean,  T stddev) {
     delete gen;
 }
 
-
-template<class T>
-void acc_val_i(Neural::Tensor4D<T> *A) {
-    int asize = A->size();
-    
-    T * a_data = A->data();
-    #pragma acc parallel loop present(a_data[:asize])
-    for(int i = 0; i < asize; i++) {
-        a_data[i] = (i+1)*29;
-    }
-}
+template void generateNormal(float *, int, float, float);
+template void generateNormal(double *, int, double, double);
 
 template<class T>
 void acc_copy(const Tensor4D<T> &A, Tensor4D<T> *B) {
@@ -124,6 +115,9 @@ void acc_copy(const Tensor4D<T> &A, Tensor4D<T> *B) {
     }
 }
 
+template void acc_copy(const Tensor4D<double> &A, Tensor4D<double> *B);
+
+
 template<class T>
 void acc_add(Tensor4D<T> *a, const Tensor4D<T> &b) {
     assert(a->size() == b.size());
@@ -138,6 +132,8 @@ void acc_add(Tensor4D<T> *a, const Tensor4D<T> &b) {
     }
 }
 
+template void acc_add(Tensor4D<double> *a, const Tensor4D<double> &b);
+
 template<class T>
 void acc_val(Tensor4D<T> *A, T val) {
     int asize = A->size();
@@ -149,10 +145,14 @@ void acc_val(Tensor4D<T> *A, T val) {
     }
 }
 
+template void acc_val(Tensor4D<double> *A, double val);
+
 template<class T>
 void acc_zeros(Tensor4D<T> *A) {
     acc_val(A, (T)0.0f);
 }
+
+template void acc_zeros(Tensor4D<double> *A);
 
 template<class T>
 void acc_mltp(Tensor4D<T> *A, T mltp) {
@@ -164,6 +164,8 @@ void acc_mltp(Tensor4D<T> *A, T mltp) {
         a_data[i] *= mltp;
     }
 }
+
+template void acc_mltp(Tensor4D<double> *A, double mltp) ;
 
 template<class T>
 void acc_accumulate(const Tensor4D<T> &a, Tensor4D<T> *b) {
@@ -186,6 +188,9 @@ void acc_accumulate(const Tensor4D<T> &a, Tensor4D<T> *b) {
         b_data[j] = accm;
     }
 }
+
+template void acc_accumulate(const Tensor4D<double> &, Tensor4D<double> *);
+
 //added comment check makefile
 template<class T>
 void acc_rng(Tensor4D<T> *output, T mtlp) {
@@ -253,6 +258,9 @@ void acc_rng(Tensor4D<T> *output, T mtlp) {
     }
 }
 
+template void acc_rng(Tensor4D<double> *output, double mtlp);
+
+
 template<class T>
 void acc_flip_spatial(Tensor4D<T> *input) {
     Shape4D shape = input->shape();
@@ -278,6 +286,8 @@ void acc_flip_spatial(Tensor4D<T> *input) {
         }
     }
 }
+
+template void acc_flip_spatial(Tensor4D<double> *input);
 
 template <class T>
 void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T> *C) {
@@ -328,6 +338,7 @@ void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T>
     }
 }
 
+template void acc_matrix_multiply(const Tensor4D<double> &A, const Tensor4D<double> &B, Tensor4D<double> *C);
 
 //TODO stride 2D?
 template <class T>
@@ -404,6 +415,8 @@ void acc_convolution2D(const Tensor4D<T> &input, const Tensor4D<T> &filters, Ten
     
 }
 
+template void acc_convolution2D(const Tensor4D<double> &input, const Tensor4D<double> &filters, Tensor4D<double> *output, const vector<int> &stride);
+
 void tparallel_conv5(double *conv_input, double *conv_filters, double *conv_output, int batch_size, int in_channels, int in_height, int in_width, int out_channels , int out_height, int out_width, int filter_size, int stride, bool debug) { 
     
     
@@ -462,6 +475,8 @@ void acc_relu(const Tensor4D<T> &input, Tensor4D<T> *output) {
     }
 }
 
+template void acc_relu(const Tensor4D<double> &input, Tensor4D<double> *output);
+
 template<class T>
 void acc_relu_backprop(const Tensor4D<T> &drv_error_output, const Tensor4D<T> &output, Tensor4D<T> *drv_error_output_preact) {
     Shape4D output_preact_shape = drv_error_output_preact->shape();
@@ -489,6 +504,9 @@ void acc_relu_backprop(const Tensor4D<T> &drv_error_output, const Tensor4D<T> &o
     }
 }
 
+template void acc_relu_backprop(const Tensor4D<double> &drv_error_output, const Tensor4D<double> &output, Tensor4D<double> *drv_error_output_preact);
+
+
 template <class T>
 void acc_sigmoid(const Tensor4D<T> &input, Tensor4D<T> *output) {
     int size = input.size();
@@ -506,6 +524,9 @@ void acc_sigmoid(const Tensor4D<T> &input, Tensor4D<T> *output) {
     }
     }
 }
+
+template void acc_sigmoid(const Tensor4D<double> &input, Tensor4D<double> *output);
+
 
 //TODO template with constexpr for any non-softmax activations
 
@@ -530,6 +551,8 @@ void acc_sigmoid_backprop(const Tensor4D<T> &drv_error_output, const Tensor4D<T>
         }
     }
 }
+
+template void acc_sigmoid_backprop(const Tensor4D<double> &drv_error_output, const Tensor4D<double> &output, Tensor4D<double> *drv_error_output_preact);
 
 template <class T>
 void acc_softmax(const Tensor4D<T> &input, Tensor4D<T> *output) {
@@ -560,6 +583,10 @@ void acc_softmax(const Tensor4D<T> &input, Tensor4D<T> *output) {
     
     }
 }
+
+template void acc_softmax(const Tensor4D<double> &input, Tensor4D<double> *output);
+
+
 
 template<class T>
 void acc_softmax_backprop(const Tensor4D<T> &drv_error_output, const Tensor4D<T> &output, Tensor4D<T> *drv_error_output_preact) {
@@ -607,6 +634,9 @@ void acc_softmax_backprop(const Tensor4D<T> &drv_error_output, const Tensor4D<T>
     
 }
 
+template void acc_softmax_backprop(const Tensor4D<double> &drv_error_output, const Tensor4D<double> &output, Tensor4D<double> *drv_error_output_preact);
+
+
 
 template <class T>
 void acc_pad2D_inner(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padding_top, int padding_bottom, int padding_left, int padding_right, int padding_inner_rows, int padding_inner_columns) {
@@ -649,10 +679,16 @@ void acc_pad2D_inner(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padd
     }
 }
 
+template void acc_pad2D_inner(const Tensor4D<double> &pre_pad, Tensor4D<double> *post_pad, int padding_top, int padding_bottom, int padding_left, int padding_right, int padding_inner_rows, int padding_inner_columns);
+
+
 template <class T>
 void acc_pad2D(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padding_top, int padding_bottom, int padding_left, int padding_right) {
     acc_pad2D_inner(pre_pad, post_pad, padding_top, padding_bottom, padding_left, padding_right, 0, 0);
 }
+
+template void acc_pad2D(const Tensor4D<double> &pre_pad, Tensor4D<double> *post_pad, int padding_top, int padding_bottom, int padding_left, int padding_right);
+
 
 template <class T>
 Tensor4D<T>* acc_padded2D_inner(const Tensor4D<T> &pre_pad, int padding_top, int padding_bottom, int padding_left, int padding_right, int padding_inner_rows, int padding_inner_columns) {
@@ -668,6 +704,9 @@ Tensor4D<T>* acc_padded2D_inner(const Tensor4D<T> &pre_pad, int padding_top, int
     
     return ret;
 }
+
+template Tensor4D<double>* acc_padded2D_inner(const Tensor4D<double> &pre_pad, int padding_top, int padding_bottom, int padding_left, int padding_right, int padding_inner_rows, int padding_inner_columns);
+
 
 template <class T>
 void acc_rev_pad2D(const Tensor4D<T> &post_pad, Tensor4D<T> *pre_pad, int padding_top, int padding_bottom, int padding_left, int padding_right) {
@@ -700,6 +739,8 @@ void acc_rev_pad2D(const Tensor4D<T> &post_pad, Tensor4D<T> *pre_pad, int paddin
     }
 }
 
+template void acc_rev_pad2D(const Tensor4D<double> &post_pad, Tensor4D<double> *pre_pad, int padding_top, int padding_bottom, int padding_left, int padding_right);
+
 template<class T>
 void acc_normalize_img(Tensor4D<T> *output) {
     
@@ -722,28 +763,8 @@ void acc_normalize_img(Tensor4D<T> *output) {
     }
 }
 
-template void acc_copy(const Tensor4D<double> &A, Tensor4D<double> *B);
-template void acc_add(Tensor4D<double> *a, const Tensor4D<double> &b);
-template void acc_val(Tensor4D<double> *A, double val);
-template void acc_zeros(Tensor4D<double> *A);
-template void acc_mltp(Tensor4D<double> *A, double mltp) ;
-template void acc_accumulate(const Tensor4D<double> &, Tensor4D<double> *);
-template void acc_rng(Tensor4D<double> *output, double mtlp);
-template void acc_flip_spatial(Tensor4D<double> *input);
-template void acc_matrix_multiply(const Tensor4D<double> &A, const Tensor4D<double> &B, Tensor4D<double> *C);
-template void acc_convolution2D(const Tensor4D<double> &input, const Tensor4D<double> &filters, Tensor4D<double> *output, const vector<int> &stride);
-
-template void acc_relu(const Tensor4D<double> &input, Tensor4D<double> *output);
-template void acc_relu_backprop(const Tensor4D<double> &drv_error_output, const Tensor4D<double> &output, Tensor4D<double> *drv_error_output_preact);
-template void acc_sigmoid(const Tensor4D<double> &input, Tensor4D<double> *output);
-template void acc_sigmoid_backprop(const Tensor4D<double> &drv_error_output, const Tensor4D<double> &output, Tensor4D<double> *drv_error_output_preact);
-template void acc_softmax(const Tensor4D<double> &input, Tensor4D<double> *output);
-template void acc_softmax_backprop(const Tensor4D<double> &drv_error_output, const Tensor4D<double> &output, Tensor4D<double> *drv_error_output_preact);
-
-template void acc_pad2D_inner(const Tensor4D<double> &pre_pad, Tensor4D<double> *post_pad, int padding_top, int padding_bottom, int padding_left, int padding_right, int padding_inner_rows, int padding_inner_columns);
-template void acc_pad2D(const Tensor4D<double> &pre_pad, Tensor4D<double> *post_pad, int padding_top, int padding_bottom, int padding_left, int padding_right);
-template Tensor4D<double>* acc_padded2D_inner(const Tensor4D<double> &pre_pad, int padding_top, int padding_bottom, int padding_left, int padding_right, int padding_inner_rows, int padding_inner_columns);
-template void acc_rev_pad2D(const Tensor4D<double> &post_pad, Tensor4D<double> *pre_pad, int padding_top, int padding_bottom, int padding_left, int padding_right);
 template void acc_normalize_img(Tensor4D<double> *output);
+
+
 
 /////
