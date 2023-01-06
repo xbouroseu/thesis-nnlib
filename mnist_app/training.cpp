@@ -7,7 +7,6 @@
 #include <vector>
 #include <cmath>
 #include "openacc.h"
-#include <curand.h> 
 #include <string_view>
 #include <memory>
 #include <unistd.h>
@@ -31,14 +30,14 @@ using namespace std;
 vector<Neural::LabeledData<double>> read_mnist_data() {
     // Load the data
     LOGI << "Reading mnist data transformed";
-    Tensor4D<double> * original_data = read_mnist_images<double>("data/train-images-idx3-ubyte");
-    Tensor4D<int>* original_labels = read_mnist_labels("data/train-labels-idx1-ubyte");
+    Tensor4D<double> * original_data = read_mnist_images<double>("../data/train-images-idx3-ubyte");
+    Tensor4D<int>* original_labels = read_mnist_labels("../data/train-labels-idx1-ubyte");
 
     vector<LabeledData<double>> train_valid_test = split_dataset(original_data, original_labels, 0.2);
 
     delete original_data;
     delete original_labels;
-    LabeledData<double> test_data_labeled(read_mnist_images<double>("data/t10k-images-idx3-ubyte"), read_mnist_labels("data/t10k-labels-idx1-ubyte"));
+    LabeledData<double> test_data_labeled(read_mnist_images<double>("../data/t10k-images-idx3-ubyte"), read_mnist_labels("../data/t10k-labels-idx1-ubyte"));
 
     train_valid_test.push_back(test_data_labeled);
 

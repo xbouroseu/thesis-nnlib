@@ -1,25 +1,21 @@
-template <typename T> 
-constexpr auto type_name() {
-    std::string_view name, prefix, suffix;
-    
-    #ifdef __clang__
-    name = __PRETTY_FUNCTION__;
-    prefix = "auto type_name() [T = ";
-    suffix = "]";
-    #elif defined(__GNUC__)
-    name = __PRETTY_FUNCTION__;
-    prefix = "constexpr auto type_name() [with T = ";
-    suffix = "]";
-    #elif defined(_MSC_VER)
-    name = __FUNCSIG__;
-    prefix = "auto __cdecl type_name<";
-    suffix = ">(void)";
-    #endif
-    name.remove_prefix(prefix.size());
-    name.remove_suffix(suffix.size());
-    
-    return name;
-}
+#include <cstdio>
+#include <string>
+#include <stdexcept>
+#include <fstream>
+#include <iostream>
+#include <plog/Initializers/RollingFileInitializer.h>
+#include <plog/Formatters/TxtFormatter.h>
+#include <plog/Appenders/ColorConsoleAppender.h>
+#include "utils.hpp"
+#include "tensor.hpp"
+#include "network.hpp"
+#include "layer.hpp"
+
+using Neural::Tensor4D;
+using Neural::Network;
+
+using namespace std;
+
 
 Tensor4D<double> * read_sample_data(string data_path) {
     ifstream file_data(data_path);
@@ -88,11 +84,24 @@ Tensor4D<int> * read_sample_labels(string data_path) {
     }
 }
 
-int main() {
-    printf("Current working dir: %s\n", get_current_dir_name());
-    cout << "__FILE__" << __FILE__ << endl;
-    cout << "Neural::is_acc " << Neural::is_acc << endl;
-    cout << "Neural::get_device_type() " << Neural::get_device_type() << endl;
+int main(int charc, char *argv[]) {
+    cout << "logging_level = atoi(argv[1])" << endl;
+    string logging_level_str = argv[1];
+    plog::Severity logging_level;
+    get_current_dir_name();
+    if(logging_level_str == "fatal") logging_level = plog::fatal;
+    else if(logging_level_str == "error") logging_level = plog::error;
+    else if(logging_level_str == "warning") logging_level = plog::warning;
+    else if(logging_level_str == "info") logging_level = plog::info;
+    else if(logging_level_str == "debug") logging_level = plog::debug;
+    else if(logging_level_str == "verbose") logging_level = plog::verbose;
+    else if(logging_level_str == "none") logging_level = plog::none;
+    else {
+        throw(std::invalid_argument("Logging level invalid"));
+    }
+    cout << "Init plog" << endl;
+    plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
+    plog::init(logging_level, &consoleAppender ); // Initialize logging to the file.
 
     Tensor4D<double> *train_data, *valid_data, *test_data;
     Tensor4D<int> *train_labels, *valid_labels, *test_labels;
@@ -125,5 +134,29 @@ int main() {
     num_hidden_nodes = 5;
     num_outputs = 10;
 
+    Network testnet(train_data->shape()); //destructor?
+
+    LOGI << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"" << padding_conv1 << "\")";
+    testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, padding_conv1);
+   
+    LOGI << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"" << padding_conv2 << "\")";
+    testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, padding_conv2);
+    
+    LOGI << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
+    testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
+    
+    LOGI << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")";
+    testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
+
+    int batch_size;
+    LOGI << "batch_size = atoi(argv[2])";
+    batch_size= atoi(argv[2]);
+    assert(batch_size <= train_data->shape()[0]);
+    LOGI << "batch_size = " << batch_size;
+
+    double learning_rate = 0.05;
+    
+    LOGI << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
+    testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, true, learning_rate, "CrossEntropy");
     
 }   

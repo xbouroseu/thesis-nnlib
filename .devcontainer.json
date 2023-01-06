@@ -1,5 +1,7 @@
 {
     "name": "HPCOpenCVBoostGdbGHRepo",
-    "image": "sirmihawk/thesis:hpc22.3_clean_plog"
+    "image": "sirmihawk/thesis:hpc22.3_clean_plog",
+    "runArgs": ["--gpus all"],
+    "containerUser": "dockeruser"
 }
 
