@@ -186,7 +186,7 @@ void acc_accumulate(const Tensor4D<T> &a, Tensor4D<T> *b) {
         b_data[j] = accm;
     }
 }
-
+//added comment check makefile
 template<class T>
 void acc_rng(Tensor4D<T> *output, T mtlp) {
     //bool acc = output->is_present_gpu();
