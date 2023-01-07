@@ -32,4 +32,13 @@ int main() {
     printf("Current working dir: %s\n", get_current_dir_name());
     cout << "__FILE__" << __FILE__ << endl;
     cout << "acc_get_device_type() " << acc_get_device_type() << endl;
+
+    int *a = new int[10];
+    a[2] = 3;
+
+    // cout << "Creating data" << endl;
+    // #pragma acc enter data create(a[:10])
+
+    cout << "Deleting data" << endl;
+    #pragma acc exit data delete(a[:10])
 }

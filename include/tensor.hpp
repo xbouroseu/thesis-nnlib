@@ -96,13 +96,7 @@ namespace Neural {
         T * _data; //TODO get rid of vector, replace with shared_ptr<double> ?
         bool _allocated{false};
         
-        void reset_data() {
-            this->delete_acc();
-            if(_allocated) {
-                delete[] _data;
-                _allocated = false;
-            }
-        }
+        void reset_data(); 
         
     public:
         template<class U>
@@ -156,29 +150,15 @@ namespace Neural {
         T& iat(int i) const {
             return _data[i];
         }
+        
         //acc
         bool is_present_acc() const;
         void update_self_acc();
 
-        void create_acc() {
-            int _size = this->size();
-            #pragma acc enter data create(_data[:_size])
-        }
-
-        void copyin_acc() {
-            int _size = this->size();
-            #pragma acc enter data copyin(_data[:_size])
-        }
-
-        void copyout_acc() {
-            int _size = this->size();
-            #pragma acc exit data copyout(_data[:_size])
-        }
-
-        void delete_acc() {
-            int _size = this->size();
-            #pragma acc exit data delete(_data[:_size])
-        }
+        void create_acc();
+        void copyin_acc();
+        void copyout_acc();
+        void delete_acc();
         
         void print();
         
