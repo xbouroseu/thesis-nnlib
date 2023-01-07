@@ -3,4 +3,3 @@
 ./apps/mnist_app/build/
 ./apps/sample_app/build/
 ./apps/test_app/build/
-./*.d
