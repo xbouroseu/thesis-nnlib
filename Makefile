@@ -41,6 +41,10 @@ ${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_acc.o} : $(BINDIR)/%_acc.o: $(S
 	${CXX} -c $^ -o $@ ${CPPFLAGS} ${CPPINCLUDES} -acc -Minfo
 
 clean:
-	rm ${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_noacc.o} ${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_acc.o} ${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_acchost.o}
+	rm lib/*
+
+clean_all: clean
+	cd mnist_app && $(MAKE) clean
+	cd sample_app && $(MAKE) clean
 ################# / ####################
 
