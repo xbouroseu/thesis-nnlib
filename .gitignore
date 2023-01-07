@@ -1,7 +1,6 @@
-trained/
-lib/*
-apps/mnist_app/build/*
-apps/mnist_app/bin/*
-apps/sample_app/build/*
-apps/sample_app/bin/*
-apps/test_app/build/*
+./trained/
+./lib/*
+./apps/mnist_app/build/
+./apps/sample_app/build/
+./apps/test_app/build/
+./*.d
