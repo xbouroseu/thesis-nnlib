@@ -1,1 +1,11 @@
 trained/
+
+lib/*
+
+mnist_app/build/*
+mnist_app/bin/*
+
+sample/build/*
+sample/bin/*
+
+test_app/build/*
