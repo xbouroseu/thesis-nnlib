@@ -29,7 +29,7 @@ using namespace std;
 
 vector<Neural::LabeledData<double>> read_mnist_data() {
     // Load the data
-    LOGI << "Reading mnist data";
+    LOGI << "Reading mnist data new";
     Tensor4D<double> * original_data = read_mnist_images<double>("data/train-images-idx3-ubyte");
     
     LOGI << "Reading mnist labels";

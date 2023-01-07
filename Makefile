@@ -16,6 +16,8 @@ APPS = mnist sample
 ACCLEVELS = noacc acchost acc
 
 all: lib
+	cd mnist_app && $(MAKE) all
+	cd sample_app && $(MAKE) all
 
 lib: $(foreach acclvl, $(ACCLEVELS), lib_$(acclvl))
 
