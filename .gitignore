@@ -1,1 +1,5 @@
 trained/
+
+lib/*
+build/*
+bin/*

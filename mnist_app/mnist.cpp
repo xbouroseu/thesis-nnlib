@@ -112,7 +112,7 @@ Tensor4D<int> * read_mnist_labels(string full_path) {
 
 template<class T>
 vector<LabeledData<T>> split_dataset(Tensor4D<T> * original_data , Tensor4D<int> *original_labels, float percentile) {
-    LOGV << "split_dataset";  
+    LOGI << "split_dataset";  
     Shape4D data_shape = original_data->shape(), labels_shape = original_labels->shape();
 
     assert(data_shape[0]==labels_shape[0]);
