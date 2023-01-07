@@ -162,8 +162,46 @@ template<class T> Tensor4D<T> & Tensor4D<T>::operator=(Tensor4D &&other) {
     return *this;
 }
 
+template<class T> void Tensor4D<T>::reset_data() {
+    LOGV << "Tensor::reset_data";
+    LOGV << "this->delete_acc";
+    bool ispr = this->is_present_acc();
+    LOGV << "is_present_acc: " << ispr;
+    this->delete_acc();
+
+    LOGV << "_allocated: " << _allocated;
+
+    if(_allocated) {
+        LOGV << "delete[] _data: ";
+        delete[] _data;
+        LOGV << "_allocated = false ";
+        _allocated = false;
+    }
+}
+template<class T> void Tensor4D<T>::create_acc() {
+    int _size = this->size();
+    #pragma acc enter data create(_data[:_size])
+}
+
+template<class T> void Tensor4D<T>::copyin_acc() {
+    int _size = this->size();
+    #pragma acc enter data copyin(_data[:_size])
+}
+
+template<class T> void Tensor4D<T>::copyout_acc() {
+    int _size = this->size();
+    #pragma acc exit data copyout(_data[:_size])
+}
+
+template<class T> void Tensor4D<T>::delete_acc() {
+    int _size = this->size();
+    #pragma acc exit data delete(_data[:_size])
+}
+
 template<class T> bool Tensor4D<T>::is_present_acc() const {
-    return Neural::is_present(this->data(), this->size() * sizeof(T));
+    LOGV << "Tensor4D::is_present_acc!";
+    // return Neural::is_present(this->data(), this->size() * sizeof(T));
+    return ::acc_is_present(_data, this->size() * sizeof(T) );
 }
 
 template<class T> void Tensor4D<T>::update_self_acc() {

@@ -87,6 +87,7 @@ Tensor4D<int> * read_mnist_labels(string full_path) {
         // }
         Shape4D labels_shape(number_of_labels, 10, 1, 1);
         Tensor4D<int> * _dataset = new Tensor4D<int>(labels_shape);
+        
         for(int i = 0; i < number_of_labels; i++) {
             uchar lbl;
             file.read((char*)&lbl, 1);
