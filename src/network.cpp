@@ -78,7 +78,7 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
         Shape4D batch_labels_shape(batch_size, labels_shape[1], labels_shape[2], labels_shape[3]);
         LOGD << "batch_labels_shape = " << batch_labels_shape.to_string();
         batch_labels = make_unique<Tensor4D<int>>(batch_labels_shape);
-        batch_data->create_acc();
+        batch_labels->create_acc();
     }
     //////////////////////////
     
@@ -140,7 +140,6 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
             
             vector<t4d *> inputs, outputs;
             t4d *prev_output = batch_data.get();
-
 
             for(int i = 0; i < layers.size(); i++) {
                 PLOGI.printf("Forward Layer %d", i);

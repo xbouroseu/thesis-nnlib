@@ -1,50 +1,52 @@
+INCLUDE_DIR = src/include
+SRC_DIR = src
+LIB_DIR = lib
+
 CXX = nvc++
-CPPFLAGS = --c++17
-CPPINCLUDES = -Iinclude -Mcudalib=curand
+CXXFLAGS = --c++17 -I$(INCLUDE_DIR) -Mcudalib=curand
 
-SRCDIR = src
-HEADERDIR = include
-BINDIR = lib
+# SRCS := $(shell find $(SRC_DIR) -name '*.cpp')
+SRCS := $(wildcard $(SRC_DIR)/*.cpp)
+TARGETS := $(notdir $(basename $(SRCS)))
+DEPS := $(addsuffix .d, $(TARGETS))
+OBJS := $(addsuffix .o, $(addprefix $(LIB_DIR)/, $(TARGETS)))
 
-# LINKLIBS = -Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc -Mcudalib=curand
-LINKLIBS = -Wl, -Mcudalib=curand
+# LDFLAGS = -Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc -Mcudalib=curand
+LDFLAGS = -Wl, -Mcudalib=curand
 
 #################  ####################
-TARGET_NAMES = layer network tensor ops utils
-
 APPS = mnist sample
 ACCLEVELS = noacc acchost acc
 
-all: lib
-	cd mnist_app && $(MAKE) all
-	cd sample_app && $(MAKE) all
+# all: lib
+# 	cd mnist_app && $(MAKE) all
+# 	cd sample_app && $(MAKE) all
 
-lib: $(foreach acclvl, $(ACCLEVELS), lib_$(acclvl))
+# lib: $(foreach acclvl, $(ACCLEVELS), lib_$(acclvl))
 
-### todo all this foreach in 1 ^^
-#### noacc
-lib_noacc: ${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_noacc.o}
+test: lvl/one/two/test
 
-${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_noacc.o} : $(BINDIR)/%_noacc.o: $(SRCDIR)/%.cpp
-	${CXX} -c $^ -o $@ ${CPPFLAGS} ${CPPINCLUDES}
+# $(CXX) -c $< $(CXXFLAGS) -MMD -o lib/ops.o
+lvl/one/two/test: src/ops.cpp
+	@echo $(SRCS)
+	@echo $(TARGETS)
+	@echo $(DEPS)
+	@echo $(OBJS)
+	@echo "hello"
 
-#### acchost
-lib_acchost: ${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_acchost.o}
+$(DEPS):%.d:$(SRC_DIR)/%.cpp
+	@set -e; rm -f $@; \
+	$(CXX) -MM $(CXXFLAGS) -c $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
 
-${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_acchost.o} : $(BINDIR)/%_acchost.o: $(SRCDIR)/%.cpp
-	${CXX} -c $^ -o $@ ${CPPFLAGS} ${CPPINCLUDES} -acc=host -Minfo
+include $(DEPS)
+# .PHONY : clean
+# clean:
+# 	rm lib/*
 
-#### acc
-lib_acc: ${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_acc.o}
-
-${foreach trg, ${TARGET_NAMES}, ${BINDIR}/${trg}_acc.o} : $(BINDIR)/%_acc.o: $(SRCDIR)/%.cpp
-	${CXX} -c $^ -o $@ ${CPPFLAGS} ${CPPINCLUDES} -acc -Minfo
-
-clean:
-	rm lib/*
-
-clean_all: clean
-	cd mnist_app && $(MAKE) clean
-	cd sample_app && $(MAKE) clean
+# clean_all: clean
+# 	cd mnist_app && $(MAKE) clean
+# 	cd sample_app && $(MAKE) clean
 ################# / ####################
 
