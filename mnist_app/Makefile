@@ -27,4 +27,4 @@ $(BINDIR)/training_noacc.o $(BINDIR)/mnist_noacc.o: $(BINDIR)/%_noacc.o: %.cpp
 	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES)
 
 clean:
-	rm bin/* mnist_acc mnist_acchost mnist_noacc
+	rm bin/* build/*

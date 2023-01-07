@@ -27,4 +27,4 @@ $(BINDIR)/training_sample_acc.o: training_sample.cpp
 	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES) -acc -Minfo
 
 clean:
-	rm bin/* sample_acc sample_acchost sample_noacc
+	rm bin/* build/*
