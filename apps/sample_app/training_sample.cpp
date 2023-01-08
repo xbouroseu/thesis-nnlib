@@ -84,7 +84,7 @@ Tensor4D<int> * read_sample_labels(string data_path) {
     }
 }
 
-int main(int charc, char *argv[]) {
+int main(int argc, char *argv[]) {
     cout << "logging_level = atoi(argv[1])" << endl;
     string logging_level_str = argv[1];
     plog::Severity logging_level;
@@ -100,7 +100,7 @@ int main(int charc, char *argv[]) {
         throw(std::invalid_argument("Logging level invalid"));
     }
     cout << "Init plog" << endl;
-    plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
+    plog::ColorConsoleAppender<plog::MyFormatter> consoleAppender;
     plog::init(logging_level, &consoleAppender ); // Initialize logging to the file.
 
     Tensor4D<double> *train_data, *valid_data, *test_data;
@@ -110,22 +110,20 @@ int main(int charc, char *argv[]) {
     int depth_conv1, depth_conv2, num_hidden_nodes, num_outputs;
     string padding_conv1, padding_conv2;
     
-    train_data = read_sample_data("data/sample_data.txt");
-    train_labels = read_sample_labels("data/sample_labels.txt");
+    train_data = read_sample_data("../data/sample_data_custom.txt");
+    train_labels = read_sample_labels("../data/sample_labels.txt");
     valid_data = train_data;
     valid_labels = train_labels;
     
     test_data = train_data;
     test_labels = train_labels;
 
-    LOGI << "Train_data->to_string()";
-    IF_PLOG(plog::info) {
-        cout << train_data->to_string() << endl;
-    }
+    _LLOG(info, train_data);
+    _LLOG(info, train_labels);
     
     padding_conv1 = "valid";
     padding_conv2 = "valid";
-    filter_size_conv1 = {3, 3};
+    filter_size_conv1 = {2,2};
     filter_size_conv2 = {2,2};
     stride_conv1 = {1,1};
     stride_conv2 = {1,1};
@@ -154,9 +152,15 @@ int main(int charc, char *argv[]) {
     assert(batch_size <= train_data->shape()[0]);
     LOGI << "batch_size = " << batch_size;
 
+    int fsteps=0, fepochs=0;
+
+    if(argc>=4) { fepochs=atoi(argv[3]); }
+    if(argc>=5) { fsteps=atoi(argv[4]); }
+
     double learning_rate = 0.05;
     
-    LOGI << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
-    testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, true, learning_rate, "CrossEntropy");
+    LOGW.printf("testnet.train(train_data_tensor, train_labels_tensor, %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
+
+    testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
     
 }   

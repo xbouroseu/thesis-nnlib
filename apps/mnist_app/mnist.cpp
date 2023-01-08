@@ -94,6 +94,9 @@ Tensor4D<int> * read_mnist_labels(string full_path) {
 
             int lblint = (int)lbl;
             
+            if(i < 32) {
+                PLOGD << lblint;
+            }
             for(int m = 0; m < 10; m++) {
                 int lbl1hot = 0;
                 if(m==lblint) {
@@ -110,43 +113,45 @@ Tensor4D<int> * read_mnist_labels(string full_path) {
     }
 }
 
+/// @brief 
+/// @tparam T datatype of dataset (double, float)
+/// @param original_data dataset
+/// @param original_labels labels in 1-hot encoding
+/// @param percentile percentage of dataset to be designated as valid
+/// @return 
 template<class T>
 vector<LabeledData<T>> split_dataset(Tensor4D<T> * original_data , Tensor4D<int> *original_labels, float percentile) {
     LOGI << "split_dataset";  
     Shape4D data_shape = original_data->shape(), labels_shape = original_labels->shape();
-
-    assert(data_shape[0]==labels_shape[0]);
-        
-    int data_sample_size = data_shape[1]*data_shape[2]*data_shape[3], labels_sample_size = labels_shape[1]*labels_shape[2]*labels_shape[3];
+    int B = data_shape[0], C = data_shape[1], H = data_shape[2], W = data_shape[3], M = labels_shape[1];
     
-    int num_train_data = (1-percentile)*data_shape[0];
-    int num_valid_data = data_shape[0] - num_train_data;
-    
-    Shape4D train_data_shape(data_shape), valid_data_shape(data_shape);
-    Shape4D train_labels_shape(labels_shape), valid_labels_shape(labels_shape);
-    train_data_shape[0] = num_train_data;
-    train_labels_shape[0] = num_train_data;
-    valid_data_shape[0] = num_valid_data;
-    valid_labels_shape[0] = num_valid_data;
+    assert(B==labels_shape[0]);
 
-    Tensor4D<T> *train_data = new Tensor4D<T>(train_data_shape), *valid_data = new Tensor4D<T>(valid_data_shape);
-    Tensor4D<int> *train_labels = new Tensor4D<int>(train_labels_shape), *valid_labels = new Tensor4D<int>(valid_labels_shape);
+    int CHW = C*H*W;
+    int B_train = (1-percentile)*B;
+    int B_valid = B - B_train;
+    LOGI.printf("B: %d, B_train: %d, B_valid: %d", B, B_train, B_valid);
 
-    for(int i = 0; i < num_train_data; i++) {
-        for(int j = 0; j < data_sample_size; j++) {
-            train_data->iat(i*data_sample_size + j) = original_data->iat(i*data_sample_size + j);
+    Tensor4D<T> *train_data = new Tensor4D<T>(B_train, C, H, W), *valid_data = new Tensor4D<T>(B_valid, C, H, W);
+    Tensor4D<int> *train_labels = new Tensor4D<int>(B_train, M, 1, 1), *valid_labels = new Tensor4D<int>(B_valid, M, 1, 1);
+
+    LOGI << "Populating train_data";
+    for(int i = 0; i < B_train; i++) {
+        for(int j = 0; j < CHW; j++) {
+            train_data->iat(i*CHW + j) = original_data->iat(i*CHW + j);
         }
-        for(int j = 0; j < labels_sample_size; j++) {
-            train_labels->iat(i*labels_sample_size + j) = original_labels->iat(i*labels_sample_size + j);
+        for(int j = 0; j < M; j++) {
+            train_labels->iat(i*M + j) = original_labels->iat(i*M + j);
         }
     }
     
-    for(int i = num_train_data; i < num_train_data + num_valid_data; i++) {
-        for(int j = 0; j < data_sample_size; j++) {
-            valid_data->iat(i*data_sample_size + j) = original_data->iat(i*data_sample_size + j);
+    LOGI << "Populating valid_data";
+    for(int i = 0; i < B_valid; i++) {
+        for(int j = 0; j < CHW; j++) {
+            valid_data->iat(i*CHW + j) = original_data->iat((i + B_train)*CHW + j);
         }
-        for(int j = 0; j < labels_sample_size; j++) {
-            valid_labels->iat(i*labels_sample_size + j) = original_labels->iat(i*labels_sample_size + j);
+        for(int j = 0; j < M; j++) {
+            valid_labels->iat(i*M + j) = original_labels->iat((i + B_train)*M + j);
         }
     }
 
@@ -157,83 +162,4 @@ vector<LabeledData<T>> split_dataset(Tensor4D<T> * original_data , Tensor4D<int>
 
 template vector<LabeledData<double>> split_dataset<double>(Tensor4D<double> *, Tensor4D<int> *,  float );
 template vector<LabeledData<float>> split_dataset<float>(Tensor4D<float> *, Tensor4D<int> *,  float );
-
-template <class T>
-T** convert_train_dataset(uchar **dataset, int num_images, int num_rows, int num_cols) {
-    T** _cdata = new T*[num_images];
-    
-    for(int k = 0; k < num_images; k++) {
-        _cdata[k] = new T[num_rows * num_cols];
-        for(int i = 0; i < num_rows; i++) {
-            for(int j = 0; j < num_cols; j++) {
-                _cdata[k][28*i + j] = (T)(dataset[k][28*i+j]);
-            }
-        }
-    }
-    
-    return _cdata;
-}
-
-double *data2mono(uchar **data, int num_images, int img_size) {
-    double *_data = new double[num_images * img_size];
-    
-    for(int i = 0; i < num_images; i++) {
-        for(int k = 0; k < img_size; k++) {
-            _data[i * img_size + k] = (double)(data[i][k]);
-        }
-    }
-    
-    return _data;
-}
-
-double *data2mono_normalized(uchar **data, int num_images, int img_size, double dml) {
-    double *_data = new double[num_images * img_size];
-    
-    for(int i = 0; i < num_images; i++) {
-        for(int k = 0; k < img_size; k++) {
-            _data[i * img_size + k] = dml * ((double)(data[i][k] - 255.0f/2))/255.0f;
-        }
-    }
-    
-    return _data;
-}
-
-template<class T>
-T *labels2mono1hot(unsigned char *labels, int num_images, int num_labels) {
-    T *_labels1hot = new T[num_images * num_labels];
-    
-    for(int i = 0; i < num_images; i++) {
-        for(int l = 0; l < num_labels; l++) {
-            if((int)labels[i] == l) {
-                _labels1hot[i*num_labels + l] = (T)1;
-            }
-            else {
-                _labels1hot[i*num_labels + l] = (T)0;
-            }
-        }
-    }
-    
-    return _labels1hot;
-}
-
-template int* labels2mono1hot<int>(unsigned char *, int, int);
-template double* labels2mono1hot<double>(unsigned char *, int, int);
-template float* labels2mono1hot<float>(unsigned char *, int, int);
-
-// template<class T>
-// vector<Tensor4D<T> *> split_random(const Tensor4D<T> &data, const Tensor4D<T> labels) {
-//     Shape4D data_shape = data.shape(), labels_shape = labels.shape();
-    
-//     assert(data_shape[0]==labels_shape[0]);
-    
-//     random_device rd; // obtain a random number from hardware
-//     mt19937 gen(rd()); // seed the generator
-//     uniform_int_distribution<> distr(0, data_shape[0]); // define the range
-// }
-
-// template vector<Tensor4D<int> *> split_random<int>(const Tensor4D<int> &, const Tensor4D<int>);
-// template vector<Tensor4D<double> *> split_random<double>(const Tensor4D<double> &, const Tensor4D<double>);
-// template vector<Tensor4D<float> *> split_random<float>(const Tensor4D<float> &, const Tensor4D<float>);
-
-
 

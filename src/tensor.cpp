@@ -211,6 +211,7 @@ template<class T> void Tensor4D<T>::update_self_acc() {
     bool is_pr = this->is_present_acc();
     LOGV << is_pr;
     int _size = this->size();
+    //TODO don't need if
     #pragma acc update self(_data[:_size]) if(is_pr)
 }
 
@@ -262,11 +263,9 @@ string get_line(int __C, int __W) {
 }
 
 template<class T> std::string Tensor4D<T>::to_string() {
-    string ret = "Tensor4D::to_string()\n";
+    string ret = _shape.to_string() + "\n";
 
     this->update_self_acc();
-    
-    ret += _shape.to_string() + "\n";
 
     int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
     

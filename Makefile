@@ -10,9 +10,13 @@ SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 TARGETS := $(notdir $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(TARGETS))
 #################  ####################
-all: lib
+
+all: lib app
 
 lib: acc acchost noacc
+
+app:
+	@cd apps && $(MAKE) all && cd ..
 
 SUFFIX_ACC = acc
 BUILD_DIR_ACC = $(BUILD_DIR)/$(SUFFIX_ACC)

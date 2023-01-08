@@ -1,10 +1,10 @@
 CXX = nvc++
 
-all: test_acc
+all: build/test_acc
 
-test_acc: test.cpp
+build/test_acc: test.cpp
 	@mkdir -p build
-	$(CXX) -o build/$@ -acc -Minfo test.cpp
+	$(CXX) -o $@ -acc -Minfo test.cpp
 
 clean:
 	rm -rf build
