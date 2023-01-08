@@ -128,6 +128,8 @@ int main(int argc, char *argv[]) {
     depth_conv2 = 64;
     num_hidden_nodes = 256;
     num_outputs = 10;
+//TODO find solution to data locality, relative? cmd argument ?, work only by running inside app folder?
+//TODO make acc for app and lib? recursive?
 
     Network testnet(train_data->shape()); //destructor?
 
