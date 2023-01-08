@@ -10,12 +10,6 @@
 #include <memory>
 #include <unistd.h>
 #include <stdio.h>
-#include "network.hpp"
-#include "mnist.hpp"
-#include "tensor.hpp"
-#include "layer.hpp"
-#include "ops.hpp" 
-#include "utils.hpp"
 #include <plog/Initializers/RollingFileInitializer.h>
 #include <plog/Formatters/TxtFormatter.h>
 #include <plog/Appenders/ColorConsoleAppender.h>
