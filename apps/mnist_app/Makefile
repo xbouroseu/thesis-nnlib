@@ -1,59 +1,64 @@
 CXX = nvc++
-CPPFLAGS = --c++17
-CPPINCLUDES = -I../include
-LIBDIR = ../lib
-BINDIR = bin
-BUILDDIR = build
-LINKLIBS = -Mcudalib
+CXXFLAGS = --c++17 -I$(INCLUDE_DIR)
+LDFLAGS = -Mcudalib
+INCLUDE_DIR = ../../src/include
+LIB_DIR = ../../lib
+BUILD_DIR = build
 LIBS = layer network tensor ops utils
-SRCFILES = training.cpp mnist.cpp mnist.hpp
 TARGETS = training mnist
-
-all: $(BUILDDIR)/mnist_acc $(BUILDDIR)/mnist_acchost $(BUILDDIR)/mnist_noacc
+DEPS := $(TARGETS:%=%.d)
+PROGRAM = mnist
 
 SUFFIX_ACC = acc
-$(BUILDDIR)/mnist_$(SUFFIX_ACC): $(BUILDDIR)/mnist_%: $(BINDIR)/training_%.o $(BINDIR)/mnist_%.o $(foreach lb, $(LIBS), $(LIBDIR)/$(lb)_%.o)
-	$(CXX) -o $@ $(LINKLIBS) -acc -Minfo $^
-
-$(foreach trg, $(TARGETS), $(BINDIR)/$(trg)_$(SUFFIX_ACC).o): $(BINDIR)/%_$(SUFFIX_ACC).o: %.cpp
-	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES) -acc -Minfo
+OBJS_ACC = $(TARGETS:%=$(BUILD_DIR)/$(SUFFIX_ACC)/%.o)
+LIBS_ACC = $(LIBS:%=$(LIB_DIR)/$(SUFFIX_ACC)/%.o)
+FLAGS_ACC = -acc -Minfo
 
 SUFFIX_ACCHOST = acchost
-$(BUILDDIR)/mnist_$(SUFFIX_ACCHOST): $(BUILDDIR)/mnist_%: $(BINDIR)/training_%.o $(BINDIR)/mnist_%.o $(foreach lb, $(LIBS), $(LIBDIR)/$(lb)_%.o)
-	$(CXX) -o $@ $(LINKLIBS) -acc -Minfo $^
-
-$(foreach trg, $(TARGETS), $(BINDIR)/$(trg)_$(SUFFIX_ACCHOST).o): $(BINDIR)/%_$(SUFFIX_ACCHOST).o: %.cpp
-	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES) -acc=host -Minfo
+OBJS_ACCHOST = $(TARGETS:%=$(BUILD_DIR)/$(SUFFIX_ACCHOST)/%.o)
+LIBS_ACCHOST = $(LIBS:%=$(LIB_DIR)/$(SUFFIX_ACCHOST)/%.o)
+FLAGS_ACCHOST = -acc=host -Minfo
 
 SUFFIX_NOACC = noacc
-$(BUILDDIR)/mnist_$(SUFFIX_NOACC): $(BUILDDIR)/mnist_%: $(BINDIR)/training_%.o $(BINDIR)/mnist_%.o $(foreach lb, $(LIBS), $(LIBDIR)/$(lb)_%.o)
-	$(CXX) -o $@ $(LINKLIBS) -acc -Minfo $^
+OBJS_NOACC = $(TARGETS:%=$(BUILD_DIR)/$(SUFFIX_NOACC)/%.o)
+LIBS_NOACC = $(LIBS:%=$(LIB_DIR)/$(SUFFIX_NOACC)/%.o)
+FLAGS_NOACC = 
 
-$(foreach trg, $(TARGETS), $(BINDIR)/$(trg)_$(SUFFIX_NOACC).o): $(BINDIR)/%_$(SUFFIX_NOACC).o: %.cpp
-	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES) -acc -Minfo
+all: $(SUFFIX_ACC) $(SUFFIX_ACCHOST) $(SUFFIX_NOACC)
 
-# build/mnist_acc_test: bin/mnist_acc.o bin/training_acc.o $(foreach lb, $(LIBS), $(LIBDIR)/$(lb)_acc.o)
-# 	$(CXX) -o $@ $(LINKLIBS) -acc -Minfo $^
+$(SUFFIX_ACC) $(SUFFIX_ACCHOST) $(SUFFIX_NOACC):%:$(BUILD_DIR)/$(PROGRAM)_%
 
-# bin/training_acc.o bin/mnist_acc.o: bin/%_acc.o : %.cpp
-# 	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES) -acc -Minfo
+##acc
+$(BUILD_DIR)/$(PROGRAM)_$(SUFFIX_ACC): $(OBJS_ACC) $(LIBS_ACC)
+	$(CXX) -o $@ $(LDFLAGS) $^ $(FLAGS_ACC)
 
-# all: 
+$(OBJS_ACC):$(BUILD_DIR)/$(SUFFIX_ACC)/%.o:%.cpp
+	@mkdir -p $(BUILD_DIR)/$(SUFFIX_ACC)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(FLAGS_ACC)
 
+##acchost
+$(BUILD_DIR)/$(PROGRAM)_$(SUFFIX_ACCHOST): $(OBJS_ACCHOST) $(LIBS_ACCHOST)
+	$(CXX) -o $@ $(LDFLAGS) $^ $(FLAGS_ACCHOST)
 
-# mnist_acchost: mnist_%: $(BINDIR)/training_%.o $(BINDIR)/mnist_%.o $(foreach lb, $(LIBS), $(LIBDIR)/$(lb)_acchost.o) 
-# 	$(CXX) -o $@ $(LINKLIBS) -acc=host -Minfo $^
+$(OBJS_ACCHOST):$(BUILD_DIR)/$(SUFFIX_ACCHOST)/%.o:%.cpp
+	@mkdir -p $(BUILD_DIR)/$(SUFFIX_ACCHOST)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(FLAGS_ACCHOST)
 
-# mnist_noacc: mnist_%: $(BINDIR)/training_%.o $(BINDIR)/mnist_%.o $(foreach lb, $(LIBS), $(LIBDIR)/$(lb)_noacc.o)
-# 	$(CXX) -o $@ $(LINKLIBS) $^
+##noacc
+$(BUILD_DIR)/$(PROGRAM)_$(SUFFIX_NOACC): $(OBJS_NOACC) $(LIBS_NOACC)
+	$(CXX) -o $@ $(LDFLAGS) $^ $(FLAGS_NOACC)
 
+$(OBJS_NOACC):$(BUILD_DIR)/$(SUFFIX_NOACC)/%.o:%.cpp
+	@mkdir -p $(BUILD_DIR)/$(SUFFIX_NOACC)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(FLAGS_NOACC)
 
-
-# $(BINDIR)/training_acchost.o $(BINDIR)/mnist_acchost.o: $(BINDIR)/%_acchost.o: %.cpp
-# 	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES) -acc=host -Minfo
-
-# $(BINDIR)/training_noacc.o $(BINDIR)/mnist_noacc.o: $(BINDIR)/%_noacc.o: %.cpp
-# 	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(CPPINCLUDES)
+$(DEPS):%.d:%.cpp
+	@set -e; rm -f $@; \
+	$(CXX) -MM $(CXXFLAGS) -c $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*, $(BUILD_DIR)/$(SUFFIX_ACC)/\1.o $(BUILD_DIR)/$(SUFFIX_ACCHOST)/\1.o $(BUILD_DIR)/$(SUFFIX_NOACC)/\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
 
 clean:
-	rm bin/* build/*
+	rm -rf build
+
+include $(DEPS)

@@ -10,7 +10,7 @@
 
 //TODO weights is Network property?
 //TODO layer::forward is variadic?
-//TODO batch_size at train time? resize whole network? so init then?
+//TODO batch_size at train time? resize whole network? so init then? 33
 
 namespace Neural {
     class Network {

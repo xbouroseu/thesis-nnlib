@@ -12,7 +12,7 @@
 //TODO: weight layers, non-weight layers OR weight_size = 0
 //TODO: require prev layer on constructor, set weight sizes
 //TODO: test batch now vs batch normal vs online (duration, accuracy)
-// TODO: Weights class including biases, dimensionality
+// TODO: Weights class including biases, dimensionality 2
 namespace Neural::Layers {
 
     ////////////////////////////// <Layer> //////////////////////////////////////////////////

@@ -16,7 +16,7 @@ constexpr int IS_OPENACC = 0;
 #define mispresent(_mdata, _n) true
 #endif
 #define hdevicetype 2
-//hello
+//hello 4
 double dur(double);
 
 namespace Neural {
