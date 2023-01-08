@@ -1,62 +1,57 @@
-SRC_DIR = src
-INCLUDE_DIR = src/include
-LIB_DIR = lib
-
 CXX = nvc++
 CXXFLAGS = --c++17 -I$(INCLUDE_DIR) -Mcudalib=curand
-
+LDFLAGS = -Wl, -Mcudalib=curand
+# LDFLAGS = -Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc -Mcudalib=curand
+SRC_DIR = src
+INCLUDE_DIR = $(SRC_DIR)/include
+BUILD_DIR = lib
 # SRCS := $(shell find $(SRC_DIR) -name '*.cpp')
 SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 TARGETS := $(notdir $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(TARGETS))
-
-# LDFLAGS = -Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc -Mcudalib=curand
-LDFLAGS = -Wl, -Mcudalib=curand
-
 #################  ####################
-APPS = mnist sample
-ACCLEVELS = noacc acchost acc
-
-all: lib app
-
-app:
-	cd apps && $(MAKE) all && cd ..
+all: lib
 
 lib: acc acchost noacc
+
 SUFFIX_ACC = acc
-LIB_DIR_ACC = $(LIB_DIR)/$(SUFFIX_ACC)
-OBJS_ACC := $(addsuffix .o, $(addprefix $(LIB_DIR_ACC)/, $(TARGETS)))
-
-acc: $(OBJS_ACC)
-
-$(OBJS_ACC):$(LIB_DIR_ACC)/%.o:$(SRC_DIR)/%.cpp
-	@mkdir -p $(LIB_DIR_ACC)
-	$(CXX) -c $< -o $@ $(CXXFLAGS) -acc -Minfo
+BUILD_DIR_ACC = $(BUILD_DIR)/$(SUFFIX_ACC)
+OBJS_ACC := $(addsuffix .o, $(addprefix $(BUILD_DIR_ACC)/, $(TARGETS)))
+FLAGS_ACC = -acc -Minfo
 
 SUFFIX_ACCHOST = acchost
-LIB_DIR_ACCHOST = $(LIB_DIR)/$(SUFFIX_ACCHOST)
-OBJS_ACCHOST := $(addsuffix .o, $(addprefix $(LIB_DIR_ACCHOST)/, $(TARGETS)))
-
-acchost: $(OBJS_ACCHOST)
-
-$(OBJS_ACCHOST):$(LIB_DIR_ACCHOST)/%.o:$(SRC_DIR)/%.cpp
-	@mkdir -p $(LIB_DIR_ACCHOST)
-	$(CXX) -c $< -o $@ $(CXXFLAGS) -acc=host -Minfo
+BUILD_DIR_ACCHOST = $(BUILD_DIR)/$(SUFFIX_ACCHOST)
+OBJS_ACCHOST := $(addsuffix .o, $(addprefix $(BUILD_DIR_ACCHOST)/, $(TARGETS)))
+FLAGS_ACCHOST = -acc=host -Minfo
 
 SUFFIX_NOACC = noacc
-LIB_DIR_NOACC = $(LIB_DIR)/$(SUFFIX_NOACC)
-OBJS_NOACC := $(addsuffix .o, $(addprefix $(LIB_DIR_NOACC)/, $(TARGETS)))
+BUILD_DIR_NOACC = $(BUILD_DIR)/$(SUFFIX_NOACC)
+OBJS_NOACC := $(addsuffix .o, $(addprefix $(BUILD_DIR_NOACC)/, $(TARGETS)))
+FLAGS_NOACC = 
 
-noacc: $(OBJS_NOACC)
+$(SUFFIX_ACC): $(OBJS_ACC)
+$(SUFFIX_ACCHOST): $(OBJS_ACCHOST)
+$(SUFFIX_NOACC): $(OBJS_NOACC)
 
-$(OBJS_NOACC):$(LIB_DIR_NOACC)/%.o:$(SRC_DIR)/%.cpp
-	@mkdir -p $(LIB_DIR_NOACC)
-	$(CXX) -c $< -o $@ $(CXXFLAGS)
+##acc
+$(OBJS_ACC):$(BUILD_DIR_ACC)/%.o:$(SRC_DIR)/%.cpp
+	@mkdir -p $(BUILD_DIR_ACC)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(FLAGS_ACC)
+
+##acchost
+$(OBJS_ACCHOST):$(BUILD_DIR_ACCHOST)/%.o:$(SRC_DIR)/%.cpp
+	@mkdir -p $(BUILD_DIR_ACCHOST)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(FLAGS_ACCHOST)
+
+##noacc
+$(OBJS_NOACC):$(BUILD_DIR_NOACC)/%.o:$(SRC_DIR)/%.cpp
+	@mkdir -p $(BUILD_DIR_NOACC)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(FLAGS_NOACC)
 
 $(DEPS):%.d:$(SRC_DIR)/%.cpp
 	@set -e; rm -f $@; \
 	$(CXX) -MM $(CXXFLAGS) -c $< > $@.$$$$; \
-	sed 's,\($*\)\.o[ :]*, $(LIB_DIR_ACC)/\1.o $(LIB_DIR_ACCHOST)/\1.o $(LIB_DIR_NOACC)/\1.o $@ : ,g' < $@.$$$$ > $@; \
+	sed 's,\($*\)\.o[ :]*, $(BUILD_DIR_ACC)/\1.o $(BUILD_DIR_ACCHOST)/\1.o $(BUILD_DIR_NOACC)/\1.o $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
 
 .PHONY : clean
