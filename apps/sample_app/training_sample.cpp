@@ -123,8 +123,8 @@ int main(int argc, char *argv[]) {
     
     padding_conv1 = "valid";
     padding_conv2 = "valid";
-    filter_size_conv1 = {2,2};
-    filter_size_conv2 = {2,2};
+    filter_size_conv1 = {4,4};
+    filter_size_conv2 = {4,4};
     stride_conv1 = {1,1};
     stride_conv2 = {1,1};
     depth_conv1 = 2;
@@ -137,11 +137,11 @@ int main(int argc, char *argv[]) {
     LOGI << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv1 << ", \"relu\", " << filter_size_conv1[0] << ", " << stride_conv1[0] << ", \"" << padding_conv1 << "\")";
     testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, padding_conv1);
    
-    LOGI << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"" << padding_conv2 << "\")";
-    testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, padding_conv2);
+    // LOGI << "testnet.add_layer<Neural::Layers::Conv>(" << depth_conv2 << ", \"relu\", " << filter_size_conv2[0] << ", " << stride_conv2[0] << ", \"" << padding_conv2 << "\")";
+    // testnet.add_layer<Neural::Layers::Conv>(depth_conv2, "relu", filter_size_conv2, stride_conv2, padding_conv2);
     
-    LOGI << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
-    testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
+    // LOGI << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
+    // testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
     
     LOGI << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")";
     testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");

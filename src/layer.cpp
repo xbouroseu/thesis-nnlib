@@ -169,6 +169,7 @@ Weighted::~Weighted() {
 
 void Weighted::init() {
     LOGI << gph() + "::init";
+    LOGI << "features: " << features;
     LOGI << "prev_shape_proto: " << prev_shape_proto.to_string();
     LOGI << "input_shape_proto: " << input_shape_proto.to_string();
     LOGI << "output_shape_proto: " << output_shape_proto.to_string();
