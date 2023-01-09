@@ -78,11 +78,11 @@ Shape4D Shape4D::flat(int dim) const {
 }
 
 template<class T> Tensor4D<T>::Tensor4D(Shape4D cshape) :_shape(cshape) {
-    LOGV << "<Tensor4D>" <<  _shape.to_string();
+    LOGD << "<Tensor4D>" <<  _shape.to_string();
     
     this->reserve();
         
-    LOGV << "</Tensor4D>";
+    LOGD << "</Tensor4D>";
 }
 
 template<class T> Tensor4D<T>::Tensor4D(int a, int b, int c, int d) : Tensor4D(Shape4D(a,b,c,d)) {}
@@ -90,10 +90,10 @@ template<class T> Tensor4D<T>::Tensor4D(int a, int b, int c, int d) : Tensor4D(S
 template<class T> Tensor4D<T>::Tensor4D() {}
 
 template<class T> Tensor4D<T>::~Tensor4D() {
-    LOGV << "<~Tensor4D>";
-    LOGV << _shape.to_string();
+    LOGD << "<~Tensor4D>";
+    LOGD << _shape.to_string();
     reset_data();
-    LOGV << ("</~Tensor4D>");
+    LOGD << ("</~Tensor4D>");
 }
 
 //TODO can delegate other ctor (T*, Shape4D) if same functionality?\
@@ -163,18 +163,18 @@ template<class T> Tensor4D<T> & Tensor4D<T>::operator=(Tensor4D &&other) {
 }
 
 template<class T> void Tensor4D<T>::reset_data() {
-    LOGV << "Tensor::reset_data";
-    LOGV << "this->delete_acc";
+    LOGD << "Tensor::reset_data";
+    LOGD << "this->delete_acc";
     bool ispr = this->is_present_acc();
-    LOGV << "is_present_acc: " << ispr;
+    LOGD << "is_present_acc: " << ispr;
     this->delete_acc();
 
-    LOGV << "_allocated: " << _allocated;
+    LOGD << "_allocated: " << _allocated;
 
     if(_allocated) {
-        LOGV << "delete[] _data: ";
+        LOGD << "delete[] _data: ";
         delete[] _data;
-        LOGV << "_allocated = false ";
+        LOGD << "_allocated = false ";
         _allocated = false;
     }
 }
@@ -306,10 +306,10 @@ template<class T> std::string Tensor4D<T>::to_string() {
 }
 
 template<class T> void Tensor4D<T>::print() {
-    LOGV << "Tensor4D::print()";
+    LOGD << "Tensor4D::print()";
     this->update_self_acc();
     
-    LOGV << _shape.to_string();
+    LOGD << _shape.to_string();
     
     int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
     

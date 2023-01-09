@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/nvhpc:22.3-devel-cuda_multi-ubuntu20.04
+FROM nvcr.io/nvidia/nvhpc:22.11-devel-cuda_multi-ubuntu20.04
 
 RUN apt update -y && apt install -y apt-utils curl sudo zsh && echo  "nvhpc-2022 hold" | dpkg --set-selections && apt upgrade -y
 RUN useradd -m -s /bin/bash dockeruser && echo "dockeruser:dockeruser" | chpasswd && adduser dockeruser sudo
