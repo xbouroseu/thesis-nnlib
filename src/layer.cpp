@@ -204,9 +204,9 @@ void Weighted::backprop_update(double learning_rate, t4d &drv_error_output_preac
     acc_mltp(drv_error_weights.get(), mltp);
     _LLOG(debug, drv_error_weights);
     LOGD << "acc_add(weights, *drv_error_weights)";
-    _LLOG(debug, weights);
+    _LLOG_A(debug, weights, "weightes pre-add");
     acc_add(weights.get(), *drv_error_weights.get());
-    _LLOG(debug, drv_error_weights);
+    _LLOG(debug, weights);
 
     _LLOG_A(debug, drv_error_biases, "drv_error_biases non learning_rate");
     LOGD << "acc_mltp(drv_error_biases, mltp)";
@@ -214,9 +214,9 @@ void Weighted::backprop_update(double learning_rate, t4d &drv_error_output_preac
     _LLOG(debug, drv_error_biases);
     //update
     LOGD << "acc_add(biases, *drv_error_biases)";
-    _LLOG(debug, biases);
+    _LLOG_A(debug, biases, "biases pre-add");
     acc_add(biases.get(),  *drv_error_biases.get());
-    _LLOG(debug, drv_error_biases);
+    _LLOG(debug, biases);
 }
 
 t4d * Weighted::backprop_calc_drv_error_biases(t4d &drv_error_output_preact) {
