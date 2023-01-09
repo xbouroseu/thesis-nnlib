@@ -764,6 +764,32 @@ void acc_normalize_img(Tensor4D<T> *output) {
 
 template void acc_normalize_img(Tensor4D<double> *output);
 
+template<class T>
+void acc_make_batch(const Neural::Tensor4D<T> &inputs, Neural::Tensor4D<T> *batch, int batch_start) {
+    const Neural::Shape4D &in_shape = inputs.shape(), &batch_shape = batch->shape();
+    int batch_size = batch_shape[0], num_inputs = in_shape[0], input_size = in_shape[1]*in_shape[2]*in_shape[3], batch_input_size = batch_shape[1]*batch_shape[2]*batch_shape[3];
+    
+    if((batch_size > num_inputs) || input_size!=batch_input_size) {
+        throw(std::invalid_argument("Error batch,inputs not compatible"));
+    }
+    
+    const T *inputs_data = inputs.data();
+    T *batch_data = batch->data();
+    
+    #pragma acc data copyin(inputs_data[(batch_start*input_size):(batch_size*input_size)]) present(batch_data[:(batch_size*input_size)])
+    {
+    #pragma acc parallel loop collapse(2)
+    for(int i = 0; i < batch_size; i++) {
+        for(int k = 0; k < input_size; k++) {
+            batch_data[i*input_size + k] = inputs_data[(i+batch_start)*input_size + k];
+        }
+    }
+        
+    }
 
+}
+//comment 2
+template void acc_make_batch<double>(const Neural::Tensor4D<double> &, Neural::Tensor4D<double> *, int);
+template void acc_make_batch<int>(const Neural::Tensor4D<int> &, Neural::Tensor4D<int> *, int);
 
 /////

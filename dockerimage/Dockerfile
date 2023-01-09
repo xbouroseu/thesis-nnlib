@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/nvhpc:22.3-devel-cuda_multi-ubuntu20.04
+FROM nvcr.io/nvidia/nvhpc:22.11-devel-cuda_multi-ubuntu20.04
 
 RUN apt update -y && apt install -y apt-utils curl sudo zsh && echo  "nvhpc-2022 hold" | dpkg --set-selections && apt upgrade -y
 RUN useradd -m -s /bin/bash dockeruser && echo "dockeruser:dockeruser" | chpasswd && adduser dockeruser sudo
@@ -13,3 +13,4 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg > t
 && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
 && sudo apt update \
 && sudo apt install gh -y
+RUN git clone https://github.com/SergiusTheBest/plog.git && echo "dockeruser" | sudo -S cp -r plog/include/plog /usr/include && rm -rf plog

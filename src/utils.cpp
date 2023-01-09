@@ -1,12 +1,14 @@
 #include "utils.hpp"
 #include <cstddef>
 #include <type_traits>
+#include <ctime>
 #include <iostream>
 
 using namespace std;
 
-double dur(double start) {
-    return (clock()-start)/CLOCKS_PER_SEC;
+double dur(clock_t start) {
+    double diff = clock()-start;
+    return diff/CLOCKS_PER_SEC;
 }
 
 int Neural::get_device_type() {
