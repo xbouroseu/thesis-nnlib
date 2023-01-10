@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
     
     // LOGI << "testnet.add_layer<Neural::Layers::Fc>(" << num_hidden_nodes << ", \"relu\")";
     // testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
-    
+    //TODO fix M!=10 cases
     LOGI << "testnet.add_layer<Neural::Layers::Fc>(" << num_outputs << ", \"softmax\")";
     testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
