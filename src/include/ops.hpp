@@ -5,7 +5,7 @@
 #include "tensor.hpp"
 #include "utils.hpp"
 
-#if defined(_DEBUG_OP) && !defined(_OPENACC)
+#if !defined(_OPENACC)
 #define SAFEDATA
 #endif
 

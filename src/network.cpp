@@ -4,6 +4,7 @@
 #include <memory>
 #include <fstream>
 #include <iomanip>
+#include <cmath>
 #include <ctime>
 #include "network.hpp"
 #include "ops.hpp"
@@ -69,7 +70,6 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
     int iters = train_num_samples/batch_size, batch_start;
     
     clock_t train_start = clock();
-    
     PLOGI.printf("Steps per epoch: %d", iters);
     int e = 0;
     double epoch_loss;
@@ -135,7 +135,6 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
 
                 prev_output = outputs[i];
             }                
-
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";   
@@ -156,6 +155,7 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
                     
                     PLOGD << "Epoch loss: " << epoch_loss << " += " << loss;
                     epoch_loss += loss;
+                    
                 }
                 else {
                     IF_PLOG(plog::debug) { op_name = "backprop_calc_drv_error_output_preact"; PLOGD << op_name; op_start = clock(); }    
@@ -168,12 +168,13 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
 
                 _LLOG(debug, drv_error_output_preact);
                 
-                IF_PLOG(plog::debug) { op_name = "backprop_update"; PLOGD << op_name; op_start = clock(); }    
-                layers[i]->backprop_update(learning_rate, *drv_error_output_preact.get(), *inputs[i]);
-                PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-                
                 IF_PLOG(plog::debug) { op_name = "backprop_calc_drv_error_prev_output"; PLOGD << op_name; op_start = clock(); }    
                 drv_error_prev_output.reset(layers[i]->backprop_calc_drv_error_prev_output(*drv_error_output_preact.get(), *inputs[i]));
+                PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+
+  
+                IF_PLOG(plog::debug) { op_name = "backprop_update"; PLOGD << op_name; op_start = clock(); }    
+                layers[i]->backprop_update(learning_rate, *drv_error_output_preact.get(), *inputs[i]);
                 PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
 
                 PLOGD.printf("delete inputs[%d]", i);
@@ -181,7 +182,8 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
             }
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
 
-            PLOGI.printf("Step %d - loss: %11.6f, epoch_loss: %11.6f, duration: %20.15f", iter, loss, epoch_loss, dur(iter_start));
+
+            PLOGI.printf("Epoch: %d - Step %d - batch_start:%d - loss: %11.6f, epoch_loss: %11.6f, duration: %20.15f", e, iter, batch_start, loss, epoch_loss, dur(iter_start));
             iter++;
         }
         while((iter < iters) && ( (fsteps==0) || (iter<fsteps) ) );

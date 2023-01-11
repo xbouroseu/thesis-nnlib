@@ -62,7 +62,7 @@ string Layer::gph() {
 }
 
 t4d * Layer::forward_activate(t4d &output_preact) {
-    LOGD << "Activation: " + activation_fn.name();
+    LOGD << gph() + "Activation: " + activation_fn.name();
 
     Shape4D output_shape = output_preact.shape();
 
@@ -79,7 +79,7 @@ t4d * Layer::forward_activate(t4d &output_preact) {
 }
 
 t4d * Layer::backprop_calc_drv_error_output_preact(string loss_fn, double &loss_value, t4d & output, Tensor4D<int> &labels_batch) {
-    LOGD << "Layer::backprop_calc_loss";
+    LOGD << gph() + "Layer::backprop_calc_loss";
     
     LOGD << "activation_type: " << this->get_activation_name();
     string activation_type = this->get_activation_name();
@@ -114,13 +114,15 @@ t4d * Layer::backprop_calc_drv_error_output_preact(string loss_fn, double &loss_
             for (int j = 0; j < M; j++) {
                 double lblval = labels_data[i * M + j], oval = output_data[i * M + j];
                 double val = lblval * oval;
-
-                // LOGD << "Loss value += " << lblval << " * " << oval << " = " << val;
+                #ifndef _OPENACC
+                LOGD << "Loss value += " << lblval << " * " << oval << " = " << val;
+                #endif
                 loss_value += val;
             }
         }
-
+        LOGD << "loss_value /= -1/" << B;
         loss_value *= -1;
+        loss_value /= B;
 
         //skiping de-derivation
         #pragma acc parallel loop collapse(2) present(labels_data[:lsize], output_data[:lsize], drv_error_output_preact_data[:lsize])
@@ -178,7 +180,7 @@ void Weighted::init() {
     weights = make_unique<t4d>(weights_shape);
     weights->create_acc();
     LOGI << "weights rng";
-    acc_rng(weights.get(), (double)0.1f);
+    acc_rng(weights.get(), (double)0.01f);
     _LLOG(debug, weights);
 
     LOGI << "biases = make_unique<t4d>(" << biases_shape.to_string()<< ")";
@@ -190,7 +192,7 @@ void Weighted::init() {
 }
 
 void Weighted::backprop_update(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
-    LOGD << "Weighted::backprop_update";
+    LOGD << gph() + "Weighted::backprop_update";
     LOGD << "learning_rate: " << learning_rate;
     Shape4D output_shape = drv_error_output_preact.shape(), input_shape = input.shape();
     assert_shape(output_shape, output_shape_proto);
@@ -220,7 +222,7 @@ void Weighted::backprop_update(double learning_rate, t4d &drv_error_output_preac
 }
 
 t4d * Weighted::backprop_calc_drv_error_biases(t4d &drv_error_output_preact) {
-    LOGD << "Weighted::backprop_calc_drv_error_biases";
+    LOGD << gph() + "Weighted::backprop_calc_drv_error_biases";
     Shape4D output_shape = drv_error_output_preact.shape();
     assert_shape(output_shape, output_shape_proto);
 
@@ -268,7 +270,7 @@ Fc::~Fc() {
 }
 
 t4d * Fc::forward_calc_input(t4d &prev_output) {
-    LOGD << "Fc::forward_calc_input";
+    LOGD << gph() + "Fc::forward_calc_input";
     Shape4D prev_shape = prev_output.shape();
     assert_shape(prev_shape, prev_shape_proto);
 
@@ -282,7 +284,7 @@ t4d * Fc::forward_calc_input(t4d &prev_output) {
 }
 
 t4d * Fc::forward_calc_output_preact(t4d &input) {
-    LOGD << "Fc::forward_calc_output";
+    LOGD << gph() + "Fc::forward_calc_output";
     Shape4D input_shape = input.shape();
     assert_shape(input_shape, input_shape_proto);
     t4d * output_preact = new t4d(input_shape[0], output_shape_proto[1], output_shape_proto[2], output_shape_proto[3]);
@@ -491,7 +493,7 @@ t4d * Conv::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &i
     
     //TODO check if acc on anything new for return
 
-    LOGD << "acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input, drv_error_weights, {1, 1})";
+    LOGD << "acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input_transposed_flipped.get(), drv_error_weights, {1, 1})";
     acc_convolution2D(*drv_error_output_preact_transposed_flipped_padded.get(), *input_transposed_flipped.get(), drv_error_weights, {1, 1});
     _LLOG_A(debug, drv_error_weights, "drv_error_weights_non_normalized");
 

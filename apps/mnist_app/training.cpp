@@ -153,10 +153,15 @@ int main(int argc, char *argv[]) {
     assert(batch_size <= train_data->shape()[0]);
     PLOGI << "batch_size = " << batch_size;
 
+    int fsteps=0, fepochs=0;
+
+    if(argc>=4) { fepochs=atoi(argv[3]); }
+    if(argc>=5) { fsteps=atoi(argv[4]); }
+
     double learning_rate = 0.05;
     
-    PLOGI << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
-    testnet.train(train_data.get(), train_labels.get(), valid_data.get(), valid_labels.get(), batch_size, true, learning_rate, "CrossEntropy");
+    LOGW.printf("testnet.train(train_data_tensor, train_labels_tensor, %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
+    testnet.train(train_data.get(), train_labels.get(), valid_data.get(), valid_labels.get(), batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
 
     return 0;
 }
