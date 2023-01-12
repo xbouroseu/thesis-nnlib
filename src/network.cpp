@@ -29,6 +29,81 @@ Network::~Network() {
     }
 }
 
+int **(t4d &output, Tensor4D<int> &labels) {
+    double accuracy, precision, recall, loss;
+
+    Shape4D output_shape = output.shape(), labels_shape = labels.shape();
+    assert(output_shape==labels_shape);
+    assert((output_shape[2]==1) && (output_shape[3]==1));
+
+    int B = output_shape[0], M = output_shape[1];
+    int *confusion_matrix = new int[M*4];
+    
+    acc_zeros<int>(confusion_matrix);
+    
+    double *output_data = output.data();
+    int *labels_data = labels.data();
+
+    #pragma acc parallel loop present(output_data[:B*M], labels_data[:B*M]) copy(confusion_matrix[:M*4])
+    for(int i = 0; i < B; i++) {
+        double mxlbl = 0.0f;
+        int predicted_lbl = 0, actual_lbl = 0;
+
+        #pragma acc loop reduction(max: mxlbl)
+        for(int j = 0; j < M; j++) {
+            double lbl = output_data[i*M + j];
+            if(lbl > mxlbl) {
+                mxlbl = lbl;
+                predicted_lbl = j;
+            }
+        }
+
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            if(labels_data[i*M + j] == 1) {
+                actual_lbl = j;
+            }
+        }
+
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            bool actual_f, predict_f;
+
+            if(actual_lbl == j) {
+                actual_f = 1;
+            }
+            else {
+                actual_f = 0;
+            }
+
+            if(predicted_lbl == j) {
+                predict_f = 1;
+            }
+            else {
+                predict_f = 0;
+            }
+
+            if( (actual_f==1) && (predict_f==1) ) {
+                //true positive
+                #pragma acc atomic update
+                confusion_matrix[j*4 + 0]++;
+            }
+            else if( (actual_f==1) && (predict_f==0) ) {
+                //false negative
+                confusion_matrix[j*4 + 1]++;
+            }
+            else if( (actual_f==0) && (predict_f==1) ) {
+                //false positive
+                confusion_matrix[j*4 + 2]++;
+            }
+            else if( (actual_f==0) && (predict_f==0) ) {
+                //true negative
+                confusion_matrix[j*4 + 3]++;
+            }
+        }
+    }
+}
+
 void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> * train_labels, const Tensor4D<double> * valid_dataset, const Tensor4D<int> * valid_labels, int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
     PLOGI << "Network::train | batch_size: " << batch_size;
 
@@ -168,9 +243,11 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
 
                 _LLOG(debug, drv_error_output_preact);
                 
-                IF_PLOG(plog::debug) { op_name = "backprop_calc_drv_error_prev_output"; PLOGD << op_name; op_start = clock(); }    
-                drv_error_prev_output.reset(layers[i]->backprop_calc_drv_error_prev_output(*drv_error_output_preact.get(), *inputs[i]));
-                PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+                if(i!=0) {
+                    IF_PLOG(plog::debug) { op_name = "backprop_calc_drv_error_prev_output"; PLOGD << op_name; op_start = clock(); }    
+                    drv_error_prev_output.reset(layers[i]->backprop_calc_drv_error_prev_output(*drv_error_output_preact.get(), *inputs[i]));
+                    PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+                }
 
   
                 IF_PLOG(plog::debug) { op_name = "backprop_update"; PLOGD << op_name; op_start = clock(); }    
@@ -192,7 +269,7 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
         e++;
         
     }
-    while( (epoch_loss < -0.05f) && ( (fepoch==0) || (e < fepoch)) );
+    while( (epoch_loss > 0.05f) && ( (fepoch==0) || (e < fepoch)) );
     
     PLOGI << "Train duration: " <<  std::setprecision(15) << std::fixed << dur(train_start);
 

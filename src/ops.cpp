@@ -153,6 +153,7 @@ void acc_zeros(Tensor4D<T> *A) {
 }
 
 template void acc_zeros(Tensor4D<double> *A);
+template void acc_zeros(Tensor4D<int> *A);
 
 template<class T>
 void acc_mltp(Tensor4D<T> *A, T mltp) {

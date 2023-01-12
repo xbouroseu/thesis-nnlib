@@ -35,7 +35,7 @@ vector<Neural::LabeledData<double>> read_mnist_data() {
     Tensor4D<int>* original_labels = read_mnist_labels("../data/train-labels-idx1-ubyte");
 
     LOGI << "Spliting dataset";
-    vector<LabeledData<double>> train_valid_test = split_dataset(original_data, original_labels, 0.2);
+    vector<LabeledData<double>> train_valid_test = split_dataset(original_data, original_labels, 0.9983);
 
     LOGI << "Deleting original_data";
     delete original_data;
@@ -131,7 +131,6 @@ int main(int argc, char *argv[]) {
     num_hidden_nodes = 256;
     num_outputs = 10;
 //TODO find solution to data locality, relative? cmd argument ?, work only by running inside app folder?
-//TODO make acc for app and lib? recursive?
 
     Network testnet(train_data->shape()); //destructor?
 

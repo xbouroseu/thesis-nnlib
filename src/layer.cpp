@@ -109,13 +109,15 @@ t4d * Layer::backprop_calc_drv_error_output_preact(string loss_fn, double &loss_
 
     if ((loss_fn == "CrossEntropy") && (activation_type == "softmax")) {
         //calculating loss
-        #pragma acc parallel loop reduction(+:loss_value) collapse(2) present(labels_data[:lsize], output_data[:lsize])
+        #pragma acc parallel loop collapse(2) reduction(+:loss_value) present(labels_data[:lsize], output_data[:lsize])
         for (int i = 0; i < B; i++) {
             for (int j = 0; j < M; j++) {
-                double lblval = labels_data[i * M + j], oval = output_data[i * M + j];
-                double val = lblval * oval;
+                int lblint = labels_data[i * M + j];
+                double lblval = lblint, oval = output_data[i * M + j];
+                double loval = log(oval);
+                double val = lblval * loval;
                 #ifndef _OPENACC
-                LOGD << "Loss value += " << lblval << " * " << oval << " = " << val;
+                LOGD << "Loss value += " << lblval << " * log(" << oval << ") = " << val;
                 #endif
                 loss_value += val;
             }
