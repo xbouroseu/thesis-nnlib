@@ -531,7 +531,7 @@ void acc_sigmoid(const Tensor4D<T> &input, Tensor4D<T> *output) {
     {
     #pragma acc parallel loop
     for(int j = 0; j < size; j++) {
-        T val = 1/(1 + exp(-1 * in_data[j]));
+        T val = 1.0f/(1 + exp(-1 * in_data[j]));
 
         out_data[j] = val;
     }
@@ -583,10 +583,16 @@ void acc_softmax(const Tensor4D<T> &input, Tensor4D<T> *output) {
     #pragma acc parallel loop
     for(int i = 0; i < B; i++) {
         T outsumi = 0.0f;
+
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            out_data[i*M + j] = exp(in_data[i*M + j]);
+        }
+
         #pragma acc loop reduction(+:outsumi)
         for(int j = 0; j < M; j++) {
-            outsumi += exp(in_data[i*M + j]);
-            out_data[i*M + j] = exp(in_data[i*M + j]);
+            outsumi += out_data[i*M + j];
+            
         }
         #pragma acc loop
         for(int j = 0; j < M; j++) {
@@ -806,7 +812,138 @@ void acc_make_batch(const Neural::Tensor4D<T> &inputs, Neural::Tensor4D<T> *batc
 
 }
 //comment 2
+
 template void acc_make_batch<double>(const Neural::Tensor4D<double> &, Neural::Tensor4D<double> *, int);
 template void acc_make_batch<int>(const Neural::Tensor4D<int> &, Neural::Tensor4D<int> *, int);
 
+template<class T>
+Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &labels) {
+    LOGI << "acc_calc_confusion_matrix";
+    double accuracy, precision, recall, loss;
+
+    Shape4D output_shape = output.shape(), labels_shape = labels.shape();
+    assert(output_shape==labels_shape);
+    assert((output_shape[2]==1) && (output_shape[3]==1));
+
+    int B = output_shape[0], M = output_shape[1];
+
+    Tensor4D<int> *confusion_matrix = new Tensor4D<int>(Shape4D(M, 4, 1, 1));
+    confusion_matrix->create_acc();
+    acc_zeros<int>(confusion_matrix);
+    _LLOG(debug, confusion_matrix);
+
+    T *output_data = output.data();
+    int *labels_data = labels.data(), *conf_data = confusion_matrix->data();
+
+    _LLOG(info, (&output));
+    _LLOG(info, (&labels));
+
+    LOGI << "Calculating confusion matrix";
+    Tensor4D<int> *predicted = new Tensor4D<int>(labels.shape());
+    predicted->create_acc();
+    acc_zeros(predicted);
+    int *predicted_data = predicted->data();
+    int psize = predicted->size();
+
+    #pragma acc parallel loop present(output_data[:B*M], labels_data[:B*M]) copy(conf_data[:M*4]) copy(predicted_data[:psize])
+    for(int i = 0; i < B; i++) {
+        T mxlbl = 0.0f;
+        int predicted_lbl = 0, actual_lbl = 0;
+
+        #pragma acc loop reduction(max: mxlbl)
+        for(int j = 0; j < M; j++) {
+            T lbl = output_data[i*M + j];
+            if(lbl > mxlbl) {
+                mxlbl = lbl;
+                predicted_lbl = j;
+            }
+        }
+
+        predicted_data[i*M + predicted_lbl] = 1;
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            if(labels_data[i*M + j] == 1) {
+                actual_lbl = j;
+            }
+        }
+
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            bool actual_f, predict_f;
+
+            if(actual_lbl == j) {
+                actual_f = 1;
+            }
+            else {
+                actual_f = 0;
+            }
+
+            if(predicted_lbl == j) {
+                predict_f = 1;
+            }
+            else {
+                predict_f = 0;
+            }
+
+            if( (actual_f==1) && (predict_f==1) ) {
+                //true positive
+                #pragma acc atomic update
+                conf_data[j*4 + 0]++;
+            }
+            else if( (actual_f==1) && (predict_f==0) ) {
+                //false negative
+                #pragma acc atomic update
+                conf_data[j*4 + 1]++;
+            }
+            else if( (actual_f==0) && (predict_f==1) ) {
+                //false positive
+                #pragma acc atomic update
+                conf_data[j*4 + 2]++;
+            }
+            else if( (actual_f==0) && (predict_f==0) ) {
+                //true negative
+                #pragma acc atomic update
+                conf_data[j*4 + 3]++;
+            }
+        }
+    }
+    
+    _LLOG(info, predicted);
+    delete predicted;
+    _LLOG(info, confusion_matrix);
+
+    Tensor4D<double> *recall_class = new Tensor4D<double>(M, 1, 1, 1);
+    Tensor4D<double> *precision_class = new Tensor4D<double>(M, 1, 1, 1);
+    LOGI << "Calculating Precision, Recall";
+
+    for(int i = 0; i < M; i++) {
+        int tp, fn, fp, tn;
+        double recall = 0.0f, precision = 0.0f;
+
+        tp = confusion_matrix->iat(i*4 + 0);
+        fn = confusion_matrix->iat(i*4 + 1);
+        fp = confusion_matrix->iat(i*4 + 2);
+        tn = confusion_matrix->iat(i*4 + 3);
+
+        precision = tp;
+        if( (tp+fp)!=0 ) {
+            precision/=(tp+fp);
+        }
+        precision_class->iat(i) = precision;
+        recall = tp;
+        if( (tp+fn)!=0 ) {
+            recall/=(tp+fn);
+        }
+        recall_class->iat(i) = recall;
+    }
+
+    _LLOG(info, precision_class);
+    _LLOG(info, recall_class);
+
+    delete recall_class;
+    delete precision_class;
+    return confusion_matrix;
+}
+
+template Tensor4D<int> * acc_calc_confusion_matrix<double>(Tensor4D<double> &, Tensor4D<int> &);
 /////

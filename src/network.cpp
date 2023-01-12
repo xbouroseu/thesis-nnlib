@@ -29,79 +29,40 @@ Network::~Network() {
     }
 }
 
-int **(t4d &output, Tensor4D<int> &labels) {
-    double accuracy, precision, recall, loss;
+Network::forward(t4d *init_input, vector<t4d *> &inputs, vector<t4d *> &outputs) {
+    t4d *prev_output = init_input;
 
-    Shape4D output_shape = output.shape(), labels_shape = labels.shape();
-    assert(output_shape==labels_shape);
-    assert((output_shape[2]==1) && (output_shape[3]==1));
+    clock_t op_start;
+    string op_name;
 
-    int B = output_shape[0], M = output_shape[1];
-    int *confusion_matrix = new int[M*4];
-    
-    acc_zeros<int>(confusion_matrix);
-    
-    double *output_data = output.data();
-    int *labels_data = labels.data();
+    for(int i = 0; i < layers.size(); i++) {
+        PLOGD.printf("Forward Layer %d", i);
+        
+        _LLOG(debug, init_input);
 
-    #pragma acc parallel loop present(output_data[:B*M], labels_data[:B*M]) copy(confusion_matrix[:M*4])
-    for(int i = 0; i < B; i++) {
-        double mxlbl = 0.0f;
-        int predicted_lbl = 0, actual_lbl = 0;
+        IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
+        inputs.push_back(layers[i]->forward_calc_input(*prev_output));
+        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LLOG(debug, inputs[i]);
 
-        #pragma acc loop reduction(max: mxlbl)
-        for(int j = 0; j < M; j++) {
-            double lbl = output_data[i*M + j];
-            if(lbl > mxlbl) {
-                mxlbl = lbl;
-                predicted_lbl = j;
-            }
+        {
+            IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
+            unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*(inputs[i])));
+            PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+            _LLOG(debug, output_preact);
+
+            IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
+            outputs.push_back(layers[i]->forward_activate(*output_preact));
+            PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+            _LLOG(debug, outputs[i]);
         }
 
-        #pragma acc loop
-        for(int j = 0; j < M; j++) {
-            if(labels_data[i*M + j] == 1) {
-                actual_lbl = j;
-            }
-        }
-
-        #pragma acc loop
-        for(int j = 0; j < M; j++) {
-            bool actual_f, predict_f;
-
-            if(actual_lbl == j) {
-                actual_f = 1;
-            }
-            else {
-                actual_f = 0;
-            }
-
-            if(predicted_lbl == j) {
-                predict_f = 1;
-            }
-            else {
-                predict_f = 0;
-            }
-
-            if( (actual_f==1) && (predict_f==1) ) {
-                //true positive
-                #pragma acc atomic update
-                confusion_matrix[j*4 + 0]++;
-            }
-            else if( (actual_f==1) && (predict_f==0) ) {
-                //false negative
-                confusion_matrix[j*4 + 1]++;
-            }
-            else if( (actual_f==0) && (predict_f==1) ) {
-                //false positive
-                confusion_matrix[j*4 + 2]++;
-            }
-            else if( (actual_f==0) && (predict_f==0) ) {
-                //true negative
-                confusion_matrix[j*4 + 3]++;
-            }
-        }
+        prev_output = outputs[i];
     }
+}
+
+Network::backward() {
+
 }
 
 void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> * train_labels, const Tensor4D<double> * valid_dataset, const Tensor4D<int> * valid_labels, int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
@@ -117,37 +78,31 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
     assert(train_num_samples == labels_shape[0]);
     assert(batch_size <= train_num_samples);
     
-    unique_ptr<t4d> batch_data;
+    unique_ptr<t4d> batch_data = make_unique<t4d>(batch_size, train_shape[1], train_shape[2], train_shape[3]);
+    LOGD << "batch_data_shape = " << batch_data->shape().to_string();
+    batch_data->create_acc();
+    
     unique_ptr<Tensor4D<int>> batch_labels;
-    
-    /////////////////////////
-    {    
-        Shape4D batch_data_shape(batch_size, train_shape[1], train_shape[2], train_shape[3]);
-        LOGD << "batch_data_shape = " << batch_data_shape.to_string();
-        batch_data = make_unique<t4d>(batch_data_shape);
-        batch_data->create_acc();
-    }
-    
-    {
-        Shape4D batch_labels_shape(batch_size, labels_shape[1], labels_shape[2], labels_shape[3]);
-        LOGD << "batch_labels_shape = " << batch_labels_shape.to_string();
-        batch_labels = make_unique<Tensor4D<int>>(batch_labels_shape);
-        batch_labels->create_acc();
-    }
-    //////////////////////////
+    batch_labels = make_unique<Tensor4D<int>>(batch_size, labels_shape[1], labels_shape[2], labels_shape[3]);
+    LOGD << "batch_labels_shape = " << batch_labels->shape().to_string();
+    batch_labels->create_acc(); 
     
     PLOGI << "Calling Layer::init";
     int lnn = 0;
+
     for(auto it: layers) {
         PLOGD << "Layer " << ++lnn << " init";
         it->init();
     }
+
     int iters = train_num_samples/batch_size, batch_start;
     
-    clock_t train_start = clock();
     PLOGI.printf("Steps per epoch: %d", iters);
     int e = 0;
     double epoch_loss;
+
+    clock_t train_start = clock();
+
     do {
         epoch_loss = 0.0f;
         clock_t epoch_start = clock();
@@ -182,34 +137,10 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
             _LLOG(debug, batch_labels);
 
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
-            
             vector<t4d *> inputs, outputs;
-            t4d *prev_output = batch_data.get();
 
-            for(int i = 0; i < layers.size(); i++) {
-                PLOGD.printf("Forward Layer %d", i);
-                
-                _LLOG(debug, prev_output);
-                
-                IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
-                inputs.push_back(layers[i]->forward_calc_input(*prev_output));
-                PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-                _LLOG(debug, inputs[i]);
-
-                {
-                    IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
-                    unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*(inputs[i])));
-                    PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-                    _LLOG(debug, output_preact);
-
-                    IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
-                    outputs.push_back(layers[i]->forward_activate(*output_preact));
-                    PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-                    _LLOG(debug, outputs[i]);
-                }
-
-                prev_output = outputs[i];
-            }                
+            Network::forward_train(batch_data.get(), inputs, outputs);
+              
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";   
@@ -228,6 +159,9 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
                     drv_error_output_preact.reset(layers[i]->backprop_calc_drv_error_output_preact(loss_fn, loss, *(outputs[i]), *batch_labels.get()));
                     PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
                     
+                    if(iter == 500) {
+                        acc_calc_confusion_matrix(*(outputs[i]), *batch_labels.get());
+                    }
                     PLOGD << "Epoch loss: " << epoch_loss << " += " << loss;
                     epoch_loss += loss;
                     

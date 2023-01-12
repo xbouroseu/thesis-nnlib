@@ -35,7 +35,7 @@ vector<Neural::LabeledData<double>> read_mnist_data() {
     Tensor4D<int>* original_labels = read_mnist_labels("../data/train-labels-idx1-ubyte");
 
     LOGI << "Spliting dataset";
-    vector<LabeledData<double>> train_valid_test = split_dataset(original_data, original_labels, 0.9983);
+    vector<LabeledData<double>> train_valid_test = split_dataset(original_data, original_labels, 0.2);
 
     LOGI << "Deleting original_data";
     delete original_data;

@@ -182,7 +182,7 @@ void Weighted::init() {
     weights = make_unique<t4d>(weights_shape);
     weights->create_acc();
     LOGI << "weights rng";
-    acc_rng(weights.get(), (double)0.01f);
+    acc_rng(weights.get(), (double)0.1f);
     _LLOG(debug, weights);
 
     LOGI << "biases = make_unique<t4d>(" << biases_shape.to_string()<< ")";
