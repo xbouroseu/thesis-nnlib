@@ -29,8 +29,8 @@ Network::~Network() {
     }
 }
 
-Network::forward(t4d *init_input, vector<t4d *> &inputs, vector<t4d *> &outputs) {
-    t4d *prev_output = init_input;
+Network::forward(t4d &init_input, vector<t4d *> *inputs, vector<t4d *> *outputs) {
+    t4d *prev_output = &init_input;
 
     clock_t op_start;
     string op_name;
@@ -41,23 +41,37 @@ Network::forward(t4d *init_input, vector<t4d *> &inputs, vector<t4d *> &outputs)
         _LLOG(debug, init_input);
 
         IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
-        inputs.push_back(layers[i]->forward_calc_input(*prev_output));
+        t4d *layer_i_input = layers[i]->forward_calc_input(*prev_output);
         PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-        _LLOG(debug, inputs[i]);
+        _LLOG_A(debug, layer_i_input, "layer_" + to_string(i) + "_input");
+        
+        if(inputs!=nullptr) {
+            inputs->push_back(layer_i_input);
+        }
+        else {
+            delete layer_i_input;
+        }
 
         {
             IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
-            unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*(inputs[i])));
+            unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*(inputs->at(i))));
             PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
             _LLOG(debug, output_preact);
 
             IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
-            outputs.push_back(layers[i]->forward_activate(*output_preact));
+            t4d *layer_i_output = layers[i]->forward_activate(*output_preact.get());
             PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-            _LLOG(debug, outputs[i]);
+            _LLOG_A(debug, layer_i_output, "layer_" + to_string(i) + "_output");
+            if(outputs!=nullptr) {
+                outputs->push_back(layer_i_output);
+            }
+            else {
+                delete
+            }
+            prev_output = layer_i_output;
         }
 
-        prev_output = outputs[i];
+        
     }
 }
 
