@@ -177,3 +177,5 @@ namespace Neural {
         auto get_labels() { return labels; }
     };
 };
+
+void assert_shape(Neural::Shape4D , Neural::Shape4D );

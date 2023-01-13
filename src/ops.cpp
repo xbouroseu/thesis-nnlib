@@ -133,6 +133,7 @@ void acc_add(Tensor4D<T> *a, const Tensor4D<T> &b) {
 }
 
 template void acc_add(Tensor4D<double> *a, const Tensor4D<double> &b);
+template void acc_add(Tensor4D<int> *a, const Tensor4D<int> &b);
 
 template<class T>
 void acc_val(Tensor4D<T> *A, T val) {
@@ -818,8 +819,7 @@ template void acc_make_batch<int>(const Neural::Tensor4D<int> &, Neural::Tensor4
 
 template<class T>
 Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &labels) {
-    LOGI << "acc_calc_confusion_matrix";
-    double accuracy, precision, recall, loss;
+    LOGD << "acc_calc_confusion_matrix";
 
     Shape4D output_shape = output.shape(), labels_shape = labels.shape();
     assert(output_shape==labels_shape);
@@ -835,10 +835,10 @@ Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &la
     T *output_data = output.data();
     int *labels_data = labels.data(), *conf_data = confusion_matrix->data();
 
-    _LLOG(info, (&output));
-    _LLOG(info, (&labels));
+    _LLOG(debug, (&output));
+    _LLOG(debug, (&labels));
 
-    LOGI << "Calculating confusion matrix";
+    LOGD << "Calculating confusion matrix";
     Tensor4D<int> *predicted = new Tensor4D<int>(labels.shape());
     predicted->create_acc();
     acc_zeros(predicted);
@@ -908,22 +908,30 @@ Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &la
         }
     }
     
-    _LLOG(info, predicted);
+    _LLOG(debug, predicted);
     delete predicted;
-    _LLOG(info, confusion_matrix);
+    _LLOG(debug, confusion_matrix);
 
+    return confusion_matrix;
+}
+
+template Tensor4D<int> * acc_calc_confusion_matrix<double>(Tensor4D<double> &, Tensor4D<int> &);
+
+void calc_precision(Tensor4D<int> &confusion_matrix) {
+    int M = confusion_matrix.shape()[0];
     Tensor4D<double> *recall_class = new Tensor4D<double>(M, 1, 1, 1);
     Tensor4D<double> *precision_class = new Tensor4D<double>(M, 1, 1, 1);
+
     LOGI << "Calculating Precision, Recall";
 
     for(int i = 0; i < M; i++) {
         int tp, fn, fp, tn;
         double recall = 0.0f, precision = 0.0f;
 
-        tp = confusion_matrix->iat(i*4 + 0);
-        fn = confusion_matrix->iat(i*4 + 1);
-        fp = confusion_matrix->iat(i*4 + 2);
-        tn = confusion_matrix->iat(i*4 + 3);
+        tp = confusion_matrix.iat(i*4 + 0);
+        fn = confusion_matrix.iat(i*4 + 1);
+        fp = confusion_matrix.iat(i*4 + 2);
+        tn = confusion_matrix.iat(i*4 + 3);
 
         precision = tp;
         if( (tp+fp)!=0 ) {
@@ -942,8 +950,5 @@ Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &la
 
     delete recall_class;
     delete precision_class;
-    return confusion_matrix;
 }
-
-template Tensor4D<int> * acc_calc_confusion_matrix<double>(Tensor4D<double> &, Tensor4D<int> &);
 /////

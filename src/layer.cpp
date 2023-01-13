@@ -16,10 +16,6 @@ typedef Tensor4D<double> t4d;
 
 using namespace std;
 
-void assert_shape(Shape4D actual, Shape4D proto) {
-    assert((actual[0]!=-1) && (actual[1]==proto[1]) && (actual[2]==proto[2]) && (actual[3]==proto[3]));
-}
-
 ///////////////////////////Layer//////////////////////////////////////
 /*
  *
@@ -509,7 +505,10 @@ t4d * Conv::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &i
 // TODO input, drv_error_output not copies?
 t4d * Conv::backprop_calc_drv_error_prev_output(t4d &drv_error_output_preact, t4d &input) {
     LOGD << gph() + "_backward_input";
-
+    
+    _LLOG(debug, (&drv_error_output_preact));
+    _LLOG(debug, (&input));
+    
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
     assert_shape(output_shape, output_shape_proto);

@@ -29,7 +29,43 @@ Network::~Network() {
     }
 }
 
-Network::forward(t4d &init_input, vector<t4d *> *inputs, vector<t4d *> *outputs) {
+t4d * Network::forward(t4d &init_input) {
+    clock_t op_start;
+    string op_name;
+    
+    t4d *prev_output = &init_input;
+    
+    for(int i = 0; i < layers.size(); i++) {
+        PLOGD.printf("Forward Layer %d", i);
+        
+        _LLOG(debug, prev_output);
+
+        IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
+        t4d *input_i = layers[i]->forward_calc_input(*prev_output);
+        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LLOG(debug, input_i);
+        if(i>0) {
+            delete prev_output;
+        }
+
+        IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
+        unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*input_i));
+        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LLOG(debug, output_preact);
+        delete input_i;
+
+        IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
+        t4d * output_i = layers[i]->forward_activate(*output_preact.get());
+        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LLOG(debug, output_i);
+        
+        prev_output = output_i;
+    }
+
+    return prev_output;
+}
+
+void Network::forward(t4d &init_input, vector<t4d *> &inputs, vector<t4d *> &outputs) {
     t4d *prev_output = &init_input;
 
     clock_t op_start;
@@ -38,78 +74,51 @@ Network::forward(t4d &init_input, vector<t4d *> *inputs, vector<t4d *> *outputs)
     for(int i = 0; i < layers.size(); i++) {
         PLOGD.printf("Forward Layer %d", i);
         
-        _LLOG(debug, init_input);
+        _LLOG(debug, prev_output);
 
         IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
-        t4d *layer_i_input = layers[i]->forward_calc_input(*prev_output);
+        inputs.push_back(layers[i]->forward_calc_input(*prev_output));
         PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-        _LLOG_A(debug, layer_i_input, "layer_" + to_string(i) + "_input");
+        _LLOG(debug, inputs[i]);
+
+        IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
+        unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*(inputs[i])));
+        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LLOG(debug, output_preact);
         
-        if(inputs!=nullptr) {
-            inputs->push_back(layer_i_input);
-        }
-        else {
-            delete layer_i_input;
-        }
-
-        {
-            IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
-            unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*(inputs->at(i))));
-            PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-            _LLOG(debug, output_preact);
-
-            IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
-            t4d *layer_i_output = layers[i]->forward_activate(*output_preact.get());
-            PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
-            _LLOG_A(debug, layer_i_output, "layer_" + to_string(i) + "_output");
-            if(outputs!=nullptr) {
-                outputs->push_back(layer_i_output);
-            }
-            else {
-                delete
-            }
-            prev_output = layer_i_output;
-        }
-
+        IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
+        outputs.push_back(layers[i]->forward_activate(*output_preact.get()));
+        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LLOG(debug, outputs[i]);
         
+        prev_output = outputs[i];
     }
 }
 
-Network::backward() {
-
-}
-
-void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> * train_labels, const Tensor4D<double> * valid_dataset, const Tensor4D<int> * valid_labels, int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
-    PLOGI << "Network::train | batch_size: " << batch_size;
-
-    Shape4D train_shape = train_dataset->shape(), labels_shape = train_labels->shape();
-    PLOGI  << "Train shape: " << train_shape.to_string();
-    
-    int train_num_samples = train_shape[0], train_size = train_dataset->size();
-    int train_num_outputs = labels_shape[1];
-    
-    assert( (train_shape[1] == input_shape_proto[1]) && (train_shape[2] == input_shape_proto[2]) && (train_shape[3] == input_shape_proto[3]));
-    assert(train_num_samples == labels_shape[0]);
-    assert(batch_size <= train_num_samples);
-    
-    unique_ptr<t4d> batch_data = make_unique<t4d>(batch_size, train_shape[1], train_shape[2], train_shape[3]);
-    LOGD << "batch_data_shape = " << batch_data->shape().to_string();
-    batch_data->create_acc();
-    
-    unique_ptr<Tensor4D<int>> batch_labels;
-    batch_labels = make_unique<Tensor4D<int>>(batch_size, labels_shape[1], labels_shape[2], labels_shape[3]);
-    LOGD << "batch_labels_shape = " << batch_labels->shape().to_string();
-    batch_labels->create_acc(); 
-    
-    PLOGI << "Calling Layer::init";
+void Network::init() {
+    PLOGI << "Network::init";
     int lnn = 0;
 
     for(auto it: layers) {
         PLOGD << "Layer " << ++lnn << " init";
         it->init();
     }
+}
 
-    int iters = train_num_samples/batch_size, batch_start;
+void Network::train(Tensor4D<double> * train_dataset, Tensor4D<int> * train_labels, Tensor4D<double> * valid_dataset, Tensor4D<int> * valid_labels, int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
+    PLOGI << "Network::train | batch_size: " << batch_size;
+
+    Shape4D train_shape = train_dataset->shape(), train_labels_shape = train_labels->shape(), valid_shape = valid_dataset->shape(), valid_labels_shape = valid_labels->shape();
+
+    assert(train_shape[0] == train_labels_shape[0]);
+    assert(batch_size <= train_shape[0]);
+    assert_shape(train_shape, valid_shape);
+    assert_shape(train_labels_shape, valid_labels_shape);
+    assert_shape(train_shape, input_shape_proto);
+
+    this->init();
+    
+    int iters = train_shape[0]/batch_size, batch_start;
     
     PLOGI.printf("Steps per epoch: %d", iters);
     int e = 0;
@@ -121,10 +130,11 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
         epoch_loss = 0.0f;
         clock_t epoch_start = clock();
         int iter=0;
+
         do {
             clock_t iter_start = clock();
 
-            batch_start = (iter*batch_size)%(train_num_samples-batch_size+1);
+            batch_start = (iter*batch_size)%(train_shape[0]-batch_size+1);
             
             LOGD << "-------------------------------------------------------------------------------------------------------------------------------------";
             
@@ -132,6 +142,12 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
                 printf("Step %d, batch_start: %d, batch_size: %d | ",iter, batch_start, batch_size);
             }
 
+            unique_ptr<t4d> batch_data = make_unique<t4d>(batch_size, train_shape[1], train_shape[2], train_shape[3]);
+            batch_data->create_acc();
+            
+            unique_ptr<Tensor4D<int>> batch_labels = make_unique<Tensor4D<int>>(batch_size, train_labels_shape[1], train_labels_shape[2], train_labels_shape[3]);
+            batch_labels->create_acc(); 
+    
             clock_t op_start;
             string op_name;
             
@@ -152,14 +168,11 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
 
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             vector<t4d *> inputs, outputs;
+            this->forward(*batch_data.get(), inputs, outputs);
 
-            Network::forward_train(batch_data.get(), inputs, outputs);
-              
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /FORWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             
-            PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";   
-            
-            PLOGD << "Backpropagating";
+            PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
             double loss;
             unique_ptr<t4d> drv_error_output_preact, drv_error_prev_output;
 
@@ -190,14 +203,13 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
                 delete outputs[i];
 
                 _LLOG(debug, drv_error_output_preact);
-                
+
                 if(i!=0) {
-                    IF_PLOG(plog::debug) { op_name = "backprop_calc_drv_error_prev_output"; PLOGD << op_name; op_start = clock(); }    
+                    IF_PLOG(plog::debug) { op_name = "backprop_calc_drv_error_prev_output"; PLOGD << op_name; op_start = clock(); }   
                     drv_error_prev_output.reset(layers[i]->backprop_calc_drv_error_prev_output(*drv_error_output_preact.get(), *inputs[i]));
                     PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
                 }
 
-  
                 IF_PLOG(plog::debug) { op_name = "backprop_update"; PLOGD << op_name; op_start = clock(); }    
                 layers[i]->backprop_update(learning_rate, *drv_error_output_preact.get(), *inputs[i]);
                 PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
@@ -205,13 +217,35 @@ void Network::train(const Tensor4D<double> * train_dataset, const Tensor4D<int> 
                 PLOGD.printf("delete inputs[%d]", i);
                 delete inputs[i];
             }
-            PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
 
+            PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
 
             PLOGI.printf("Epoch: %d - Step %d - batch_start:%d - loss: %11.6f, epoch_loss: %11.6f, duration: %20.15f", e, iter, batch_start, loss, epoch_loss, dur(iter_start));
             iter++;
         }
         while((iter < iters) && ( (fsteps==0) || (iter<fsteps) ) );
+        
+        int iters_valid = valid_shape[0]/batch_size;
+        
+
+        for(int v=0; v < iters_valid; v++) {
+            int valid_batch_start = (v*batch_size)%(valid_shape[0]-batch_size+1);
+
+            unique_ptr<t4d> valid_batch_data = make_unique<t4d>(batch_size, valid_shape[1], valid_shape[2], valid_shape[3]);
+            valid_batch_data->create_acc();
+            unique_ptr<Tensor4D<int>> valid_batch_labels = make_unique<Tensor4D<int>>(batch_size, valid_labels_shape[1], valid_labels_shape[2], valid_labels_shape[3]);
+            valid_batch_labels->create_acc();
+            
+            acc_make_batch(*valid_dataset, valid_batch_data.get(), valid_batch_start);
+            acc_normalize_img(valid_batch_data.get());
+            acc_make_batch<int>(*valid_labels, valid_batch_labels.get(), valid_batch_start);
+            
+            t4d *valid_output = this->forward(*valid_batch_data.get());
+            Tensor4D<int> *batch_conf_matrix = acc_calc_confusion_matrix(*valid_output, *valid_batch_labels.get());
+            delete batch_conf_matrix;
+            delete valid_output;
+        }
+
         PLOGI << "Epoch [" << e << "] loss: " << epoch_loss << ", duration: " << dur(epoch_start);
         
         e++;
