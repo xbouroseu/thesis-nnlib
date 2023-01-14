@@ -13,6 +13,8 @@ constexpr int DEBUG__ = 1;
 
 void tparallel_conv5(double *conv_input, double *conv_filters, double *conv_output, int batch_size, int in_channels, int in_height, int in_width, int out_channels , int out_height, int out_width, int filter_size, int stride, bool debug);
 
+std::vector<Neural::Tensor4D<double> *> calc_metrics(Neural::Tensor4D<int> &confusion_matrix);
+
 template<class T> void acc_copy(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
 template<class T> void acc_add(Neural::Tensor4D<T> *, const Neural::Tensor4D<T> &);
 template<class T> void acc_val(Neural::Tensor4D<T> *, T );

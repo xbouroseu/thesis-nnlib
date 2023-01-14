@@ -917,12 +917,12 @@ Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &la
 
 template Tensor4D<int> * acc_calc_confusion_matrix<double>(Tensor4D<double> &, Tensor4D<int> &);
 
-void calc_precision(Tensor4D<int> &confusion_matrix) {
+vector<Tensor4D<double> *> calc_metrics(Tensor4D<int> &confusion_matrix) {
     int M = confusion_matrix.shape()[0];
     Tensor4D<double> *recall_class = new Tensor4D<double>(M, 1, 1, 1);
     Tensor4D<double> *precision_class = new Tensor4D<double>(M, 1, 1, 1);
 
-    LOGI << "Calculating Precision, Recall";
+    LOGI << "Calculating Precision, Recall, Accuracy, F1 Metrics";
 
     for(int i = 0; i < M; i++) {
         int tp, fn, fp, tn;
@@ -945,10 +945,12 @@ void calc_precision(Tensor4D<int> &confusion_matrix) {
         recall_class->iat(i) = recall;
     }
 
-    _LLOG(info, precision_class);
-    _LLOG(info, recall_class);
+    _LLOG(debug, precision_class);
+    _LLOG(debug, recall_class);
 
-    delete recall_class;
-    delete precision_class;
+    vector<Tensor4D<double> *> ret;
+    ret.push_back(precision_class);
+    ret.push_back(recall_class);
+    return ret;
 }
 /////
