@@ -1,9 +1,8 @@
-# thesis-mnist-deepfashion
-
---------------COMPILATION INSTRUCTIONS-----------
-Requirements: NVIDIA GPU, Docker
+# thesis-mnist
 
 # Usage
+## Requirements: NVIDIA GPU, Docker
+
 ## Step 1: Build the docker image
 ```
 $ git clone https://github.com/xbouroseu/thesis-mnist \
