@@ -29,7 +29,15 @@ And then to build the library and apps you do:
 $ cd thesis-mnist && ./make all
 ```
 
-Alternatively you can only build the library with `thesis-mnist$ make lib` and the apps with `thesis-mnist$ make app`
+Alternatively you can only build the library with:
+```
+thesis-mnist$ make lib
+``` 
+
+and the apps with:
+```
+thesis-mnist$ make app
+```
 
 ## Step 4: Run the mnist training application
 After building the library and the sample apps we can run one application which is training and evaluating a Convolution Neural Network on the MNIST dataset.
