@@ -3,13 +3,9 @@
 # Usage
 ## Requirements: NVIDIA GPU, Docker
 
-## Step 1: Build the docker image
+## Step 1: Pull the docker image
 ```
-$ git clone https://github.com/xbouroseu/thesis-mnist \
-&& cd thesis-mnist \
-&& docker build -t sirmihawk/thesis:hpc22.11_build . \
-&& cd ../ \
-&& rm -rf thesis-mnist
+$ docker pull sirmihawk/thesis:hpc22.11_build
 ```
 
 ## Step 2: Create a new docker container
