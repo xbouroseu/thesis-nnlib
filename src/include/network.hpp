@@ -48,7 +48,8 @@ namespace Neural {
         void set_acc(bool);
         void alloc();
         void forward();
-        void train(Tensor4D<double> *, Tensor4D<int> *, Tensor4D<double> *, Tensor4D<int> *, int, bool, double, std::string, int fepochs=0, int fsteps=0);
+        void eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, double &recall, double &precision);
+        void train(Tensor4D<double> &, Tensor4D<int> &, Tensor4D<double> &, Tensor4D<int> &, int, bool, double, std::string, int fepochs = 0, int fsteps = 0);
     };
 }
 

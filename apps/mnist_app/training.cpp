@@ -159,8 +159,12 @@ int main(int argc, char *argv[]) {
 
     double learning_rate = 0.05;
     
-    LOGW.printf("testnet.train(train_data_tensor, train_labels_tensor, %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
-    testnet.train(train_data.get(), train_labels.get(), valid_data.get(), valid_labels.get(), batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
+    LOGW.printf("testnet.train(*train_data.get(), *train_labels.get(), *valid_data.get(), *valid_labels.get(), %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
+    testnet.train(*train_data.get(), *train_labels.get(), *valid_data.get(), *valid_labels.get(), batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
 
+    double precision_test, recall_test;
+    LOGW << "testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test)";
+    testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test);
+    LOGW << "Precision_test: " << precision_test << " | Recall_test: " << recall_test;
     return 0;
 }

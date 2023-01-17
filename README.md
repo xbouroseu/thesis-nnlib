@@ -1,34 +1,52 @@
 # thesis-mnist-deepfashion
 
 --------------COMPILATION INSTRUCTIONS-----------
-ΑΠΑΙΤΟΥΜΕΝΑ: Η τελευταία  διαθέσιμη έκδοση των NVIDIA HPC Compilers (currently ver 21.3)
+Requirements: NVIDIA GPU, Docker
 
-#Compile training phase for parallel execution on GPU
-- $ pgc++ -o NEURAL_TRAIN  -Mcudalib=curand  MNIST_TRAINING.cpp -acc --c++17
+# Usage
+## Step 1: Build the docker image
+```
+$ git clone https://github.com/xbouroseu/thesis-mnist \
+&& cd thesis-mnist \
+&& docker build -t sirmihawk/thesis:hpc22.11_build . \
+&& cd ../ \
+&& rm -rf thesis-mnist
+```
 
-#Compile training phase for serial execution on CPU
-- $ pgc++ -o NEURAL_TRAIN_SERIAL  -Mcudalib=curand  MNIST_TRAINING.cpp -acc --c++17 -ta=host
+## Step 2: Create a new docker container
+The --rm option will create a container which will be auto-removed once the session is ended.
 
-#Compile evaluation phase for parallel execution on GPU
-- $ pgc++ -o NEURAL_EVAL  -Mcudalib=curand -w  MNIST_EVAL.cpp -acc --c++17
+```
+$ docker run -it --rm --gpus all sirmihawk/thesis:hpc22.11_build
+```
 
-#Compile evaluation phase for serial execution on CPU
-- $ pgc++ -o NEURAL_EVAL_SERIAL  -Mcudalib=curand -w  MNIST_EVAL.cpp -acc --c++17 -ta=host
+## Step 3: Build the library and sample apps
+Once you're inside the container you can clone again the repository with:
+```
+$ git clone https://github.com/xbouroseu/thesis-mnist 
+```
+And then to build the library and apps you do:
+```
+$ cd thesis-mnist && ./make all
+```
 
----------- ΟΔΗΓΙΕΣ ΧΡΗΣΗΣ ----------
+Alternatively you can only build the library with `thesis-mnist$ make lib` and the apps with `thesis-mnist$ make app`
 
-Για να τρέξουμε την εκπαίδευση του νευρωνικού δικτύου αρκεί να καλέσουμε
+## Step 4: Run the mnist training application
+After building the library and the sample apps we can run one application which is training and evaluating a Convolution Neural Network on the MNIST dataset.
 
-- $ ./NEURAL_TRAIN(_SERIAL) Χ
+Let's assume the variable `x` is the batch size:
 
-όπου Χ είναι ο αριθμός των βημάτων που θέλουμε να κάνουμε
+```
+thesis-mnist$ cd apps/mnist_app
+```
 
-Αφού τρέξουμε το παραπάνω τα αποτελέσματα της εκπαίδευσης, δηλαδή η δομή του δικτύου που θα δημιουργηθεί, θα αποθηκευτούν σε ένα αρχείο csv.
+To run the gpu-accelerated version:
+```
+mnist-app$ ./build/mnist_acc info x
+```
 
-Για να τρέξουμε την αξιολόγηση (evaluation), η οποία κάνει evaluate πάνω στα train και test dataset, αρκεί να καλέσουμε:
-
-- $ ./NEURAL_EVAL(_SERIAL) FILE
-
-όπου FILE είναι το CSV αρχείο που περιλαμβάνει τη δομή του εκπαιδευμένου δικτύου που θέλουμε να αξιολογήσουμε
-
-
+And the non-accelerated one:
+```
+mnist-app$ ./build/mnist_noacc info x
+```

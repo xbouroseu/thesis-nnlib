@@ -159,8 +159,8 @@ int main(int argc, char *argv[]) {
 
     double learning_rate = 0.05;
     
-    LOGW.printf("testnet.train(train_data_tensor, train_labels_tensor, %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
+    LOGW.printf("testnet.train(*train_data, *train_labels, *valid_data, *valid_labels, %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
 
-    testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
+    testnet.train(*train_data, *train_labels, *valid_data, *valid_labels, batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
     
 }   

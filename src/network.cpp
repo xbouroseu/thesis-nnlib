@@ -105,10 +105,66 @@ void Network::init() {
     }
 }
 
-void Network::train(Tensor4D<double> * train_dataset, Tensor4D<int> * train_labels, Tensor4D<double> * valid_dataset, Tensor4D<int> * valid_labels,  int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
+void Network::eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, double &recall, double &precision) {
+    Shape4D eval_data_shape = eval_dataset.shape(), eval_labels_shape = eval_labels.shape();
+
+    vector<Tensor4D<int> *> confusion_matrices;
+    int eval_batch_size = eval_data_shape[0]/100;
+    int iters_eval = eval_data_shape[0]/eval_batch_size;
+
+    LOGI.printf("eval_batch_size: %d, iters_eval: %d", eval_batch_size, iters_eval);
+    for(int v=0; v < iters_eval; v++) {
+        LOGI_IF((v%10)==0) << v;
+        int eval_batch_start = (v*eval_batch_size)%(eval_data_shape[0]-eval_batch_size+1);
+
+        unique_ptr<t4d> eval_batch_data = make_unique<t4d>(eval_batch_size, eval_data_shape[1], eval_data_shape[2], eval_data_shape[3]);
+        eval_batch_data->create_acc();
+
+        unique_ptr<Tensor4D<int>> eval_batch_labels = make_unique<Tensor4D<int>>(eval_batch_size, eval_labels_shape[1], eval_labels_shape[2], eval_labels_shape[3]);
+        eval_batch_labels->create_acc();
+
+        acc_make_batch(eval_dataset, eval_batch_data.get(), eval_batch_start);
+        acc_normalize_img(eval_batch_data.get());
+        acc_make_batch<int>(eval_labels, eval_batch_labels.get(), eval_batch_start);
+        
+        t4d *eval_batch_output = this->forward(*eval_batch_data.get());
+        Tensor4D<int> *batch_conf_matrix = acc_calc_confusion_matrix(*eval_batch_output, *eval_batch_labels.get());
+        confusion_matrices.push_back(batch_conf_matrix);
+        delete eval_batch_output;
+    }
+
+    Tensor4D<int> *confusion_matrix_final = confusion_matrices[0];
+    for(int i = 1; i < confusion_matrices.size(); i++) {
+        acc_add(confusion_matrix_final, *confusion_matrices[i]);
+    }
+
+    _LLOG(info, confusion_matrix_final);
+
+    LOGI << "Calculating precision/recall per class";
+    vector<Tensor4D<double> *> precision_recall_class = calc_metrics(*confusion_matrix_final);
+    Tensor4D<double> * precision_class = precision_recall_class[0];
+    Tensor4D<double> * recall_class = precision_recall_class[1];
+
+    _LLOG(info, precision_recall_class[0]);
+    _LLOG(info, precision_recall_class[1]);
+
+    LOGI << "Calculating precision/recall average over classes";
+
+    precision = 0.0f;
+    recall = 0.0f;
+    for(int m = 0; m < precision_class->size(); m++) {
+        precision += precision_class->iat(m);
+        recall += recall_class->iat(m);
+    }
+    precision /= precision_class->size();
+    recall /= precision_class->size();
+
+    delete confusion_matrix_final;
+}
+void Network::train(Tensor4D<double> &train_dataset, Tensor4D<int> &train_labels, Tensor4D<double> &valid_dataset, Tensor4D<int> &valid_labels,  int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
     PLOGI << "Network::train | batch_size: " << batch_size;
 
-    Shape4D train_shape = train_dataset->shape(), train_labels_shape = train_labels->shape(), valid_shape = valid_dataset->shape(), valid_labels_shape = valid_labels->shape();
+    Shape4D train_shape = train_dataset.shape(), train_labels_shape = train_labels.shape(), valid_shape = valid_dataset.shape(), valid_labels_shape = valid_labels.shape();
 
     assert(train_shape[0] == train_labels_shape[0]);
     assert(batch_size <= train_shape[0]);
@@ -122,13 +178,11 @@ void Network::train(Tensor4D<double> * train_dataset, Tensor4D<int> * train_labe
     
     PLOGI.printf("Steps per epoch: %d", iters);
     int e = 0;
-    double epoch_loss, precision_epoch = 0.0f, recall_epoch = 0.0f, accuracy_epoch;
+    vector<double> epoch_recalls, epoch_precisions;
     clock_t train_start = clock();
 
     do {
-        epoch_loss = 0.0f;
-        precision_epoch = 0.0f;
-        recall_epoch = 0.0f;
+        double epoch_loss = 0.0f, precision_epoch = 0.0f, recall_epoch = 0.0f;
         clock_t epoch_start = clock();
         int iter=0;
 
@@ -154,7 +208,7 @@ void Network::train(Tensor4D<double> * train_dataset, Tensor4D<int> * train_labe
             string op_name;
             
             IF_PLOG(plog::debug) { op_name = "acc_make_batch"; PLOGD << op_name; op_start = clock(); }
-            acc_make_batch<double>(*train_dataset, batch_data.get(),  batch_start);
+            acc_make_batch<double>(train_dataset, batch_data.get(),  batch_start);
             PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
             _LLOG(debug, batch_data);            
 
@@ -164,7 +218,7 @@ void Network::train(Tensor4D<double> * train_dataset, Tensor4D<int> * train_labe
             _LLOG_A(debug, batch_data, "batch_data_normalized")
 
             IF_PLOG(plog::debug) { op_name = "acc_make_batch[labels]"; PLOGD << op_name; op_start = clock(); }
-            acc_make_batch<int>(*train_labels, batch_labels.get(), batch_start);
+            acc_make_batch<int>(train_labels, batch_labels.get(), batch_start);
             PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
             _LLOG(debug, batch_labels);
 
@@ -227,62 +281,20 @@ void Network::train(Tensor4D<double> * train_dataset, Tensor4D<int> * train_labe
         }
         while((iter < iters) && ( (fsteps==0) || (iter<fsteps) ) );
         
-        
-        //TODO add confusion matrices
         //TODO overload operator+ Tensor?
         //TODO make ops return?
         //TODO chain create_acc etc?
-        vector<Tensor4D<int> *> confusion_matrices;
-        int valid_batch_size = valid_shape[0]/100;
-        int iters_valid = valid_shape[0]/valid_batch_size;
-        LOGI.printf("valid_batch_size: %d, iters_valid: %d", valid_batch_size, iters_valid);
-        for(int v=0; v < iters_valid; v++) {
-            LOGI_IF((v%10)==0) << v;
-            int valid_batch_start = (v*valid_batch_size)%(valid_shape[0]-valid_batch_size+1);
+        LOGW << "Calculating metrics for valid_dataset";
+        LOGW << "this->eval(valid_dataset, valid_labels, recall_epoch, precision_epoch)";
+        this->eval(valid_dataset, valid_labels, recall_epoch, precision_epoch);
+        epoch_recalls.push_back(recall_epoch);
+        epoch_precisions.push_back(precision_epoch); 
 
-            unique_ptr<t4d> valid_batch_data = make_unique<t4d>(valid_batch_size, valid_shape[1], valid_shape[2], valid_shape[3]);
-            valid_batch_data->create_acc();
-            unique_ptr<Tensor4D<int>> valid_batch_labels = make_unique<Tensor4D<int>>(valid_batch_size, valid_labels_shape[1], valid_labels_shape[2], valid_labels_shape[3]);
-            valid_batch_labels->create_acc();
-
-            acc_make_batch(*valid_dataset, valid_batch_data.get(), valid_batch_start);
-            acc_normalize_img(valid_batch_data.get());
-            acc_make_batch<int>(*valid_labels, valid_batch_labels.get(), valid_batch_start);
-            
-            t4d *valid_output = this->forward(*valid_batch_data.get());
-            Tensor4D<int> *batch_conf_matrix = acc_calc_confusion_matrix(*valid_output, *valid_batch_labels.get());
-            confusion_matrices.push_back(batch_conf_matrix);
-            delete valid_output;
-        }
-
-        Tensor4D<int> *confusion_matrix_final = confusion_matrices[0];
-        for(int i = 1; i < confusion_matrices.size(); i++) {
-            acc_add(confusion_matrix_final, *confusion_matrices[i]);
-        }
-
-        _LLOG(info, confusion_matrix_final);
-
-        vector<Tensor4D<double> *> precision_recall_class = calc_metrics(*confusion_matrix_final);
-        Tensor4D<double> * precision_class = precision_recall_class[0];
-        Tensor4D<double> * recall_class = precision_recall_class[1];
-
-        _LLOG(info, precision_recall_class[0]);
-        _LLOG(info, precision_recall_class[1]);
-
-        for(int m = 0; m < precision_class->size(); m++) {
-            precision_epoch += precision_class->iat(m);
-            recall_epoch += recall_class->iat(m);
-        }
-        precision_epoch /= precision_class->size();
-        recall_epoch /= precision_class->size();
-        delete confusion_matrix_final;
-
-        PLOGI << "Epoch [" << e << "] loss: " << epoch_loss << "precision: " << precision_epoch << " recall: " << recall_epoch << ", duration: " << dur(epoch_start);
-        
+        PLOGI << "Epoch [" << e << "] loss: " << epoch_loss << ", precision: " << precision_epoch << ", recall: " << recall_epoch << ", duration: " << dur(epoch_start);
         e++;
         
     }
-    while( (recall_epoch < 0.99) && ( (fepoch==0) || (e < fepoch)) );
+    while( (e>0 && ( (epoch_recalls[e-1]-epoch_recalls[e-2]) >= 0.01 ) ) && ( (fepoch==0) || (e < fepoch)) );
     
     PLOGI << "Train duration: " <<  std::setprecision(15) << std::fixed << dur(train_start);
 
