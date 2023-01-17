@@ -136,17 +136,14 @@ namespace Neural {
         
         std::ostream & put(std::ostream & );
         
-        #pragma acc routine seq
         void set(int index, T val) {
             _data[index] = val;
         }
         
-        #pragma acc routine seq
         T& at(int i, int j, int k, int l) const {
             return _data[i*_shape[1]*_shape[2]*_shape[3] + j*_shape[2]*_shape[3] + k*_shape[3] + l];
         }
         
-        #pragma acc routine seq
         T& iat(int i) const {
             return _data[i];
         }
@@ -180,3 +177,5 @@ namespace Neural {
         auto get_labels() { return labels; }
     };
 };
+
+void assert_shape(Neural::Shape4D , Neural::Shape4D );

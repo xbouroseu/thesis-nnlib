@@ -133,6 +133,7 @@ void acc_add(Tensor4D<T> *a, const Tensor4D<T> &b) {
 }
 
 template void acc_add(Tensor4D<double> *a, const Tensor4D<double> &b);
+template void acc_add(Tensor4D<int> *a, const Tensor4D<int> &b);
 
 template<class T>
 void acc_val(Tensor4D<T> *A, T val) {
@@ -153,6 +154,7 @@ void acc_zeros(Tensor4D<T> *A) {
 }
 
 template void acc_zeros(Tensor4D<double> *A);
+template void acc_zeros(Tensor4D<int> *A);
 
 template<class T>
 void acc_mltp(Tensor4D<T> *A, T mltp) {
@@ -316,21 +318,27 @@ void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T>
     for(int i = 0; i < N; i++) {
         for(int j = 0; j < M; j++) {
             T csumd = 0.0f;
-            
-            // IF_PLOG(plog::debug) {
-            //     printf("Out [%d, %d] = ", i, j);
-            // }
+            //1
+            #ifndef _OPENACC
+            IF_PLOG(plog::debug) {
+                printf("Out [%d, %d] = ", i, j);
+            }
+            #endif
                 
             #pragma acc loop seq reduction(+:csumd)
             for(int t = 0; t < K; t++) {
-                // IF_PLOG(plog::debug) {
-                //     cout << " + [" << a_data[i*K + t] << " x " << b_data[t*M + j] << "]";
-                // }
+                #ifndef _OPENACC
+                IF_PLOG(plog::debug) {
+                    cout << " + [" << a_data[i*K + t] << " x " << b_data[t*M + j] << "]";
+                }
+                #endif
                 csumd += a_data[i*K + t] * b_data[t*M + j];
             }
-            // IF_PLOG(plog::debug) {
-            //     cout << " = " << csumd << endl;
-            // }
+            #ifndef _OPENACC
+            IF_PLOG(plog::debug) {
+                cout << " = " << csumd << endl;
+            }
+            #endif
             c_data[i*M + j] = csumd;
         }
     }
@@ -383,18 +391,22 @@ void acc_convolution2D(const Tensor4D<T> &input, const Tensor4D<T> &filters, Ten
             for(int oh = 0; oh < out_rows; oh++) {
                 for(int ow = 0; ow < out_cols; ow++) {
                     T bdhwsum = 0.0f;
-                    // IF_PLOG(plog::debug) {
-                    //     printf("Out[%d, %d, %d, %d] = ", i, och, oh, ow);
-                    // }
+                    #ifndef _OPENACC
+                    IF_PLOG(plog::debug) {
+                        printf("Out[%d, %d, %d, %d] = ", i, och, oh, ow);
+                    }
+                    #endif
                     
                     #pragma acc loop seq collapse(3) reduction(+:bdhwsum)
                     for(int ich = 0; ich < in_channels; ich++) {
     //                         double csum = 0.0f;
                         for(int fi = 0; fi < filter_height; fi++) {
                             for(int fj = 0; fj < filter_width; fj++) {
-                                // IF_PLOG(plog::debug) {
-                                //     cout << " + [" << in_data[ (i*in_channels + ich)*in_rows*in_cols + (oh*stride_r + fi)*in_cols + ow*stride_c + fj ] << " x " << filter_data[ (och*in_channels + ich)*filter_height*filter_width + fi*filter_width + fj ] << "]";
-                                // }
+                                #ifndef _OPENACC
+                                IF_PLOG(plog::debug) {
+                                    cout << " + [" << in_data[ (i*in_channels + ich)*in_rows*in_cols + (oh*stride_r + fi)*in_cols + ow*stride_c + fj ] << " x " << filter_data[ (och*in_channels + ich)*filter_height*filter_width + fi*filter_width + fj ] << "]";
+                                }
+                                #endif
                                 
                                 bdhwsum += in_data[ (i*in_channels + ich)*in_rows*in_cols + (oh*stride_r + fi)*in_cols + ow*stride_c + fj ] * filter_data[ (och*in_channels + ich)*filter_height*filter_width + fi*filter_width + fj ];
                             }
@@ -403,9 +415,11 @@ void acc_convolution2D(const Tensor4D<T> &input, const Tensor4D<T> &filters, Ten
                     }
                     
                     out_data[(i*out_channels + och)*out_cols*out_rows + oh*out_cols + ow] = bdhwsum;
-                    // IF_PLOG(plog::debug) {
-                    //     printf(" = %+011.5f\n", bdhwsum);
-                    // }
+                    #ifndef _OPENACC
+                    IF_PLOG(plog::debug) {
+                        printf(" = %+011.5f\n", bdhwsum);
+                    }
+                    #endif
                 }
             }
         }
@@ -518,7 +532,7 @@ void acc_sigmoid(const Tensor4D<T> &input, Tensor4D<T> *output) {
     {
     #pragma acc parallel loop
     for(int j = 0; j < size; j++) {
-        T val = 1/(1 + exp(-1 * in_data[j]));
+        T val = 1.0f/(1 + exp(-1 * in_data[j]));
 
         out_data[j] = val;
     }
@@ -570,10 +584,16 @@ void acc_softmax(const Tensor4D<T> &input, Tensor4D<T> *output) {
     #pragma acc parallel loop
     for(int i = 0; i < B; i++) {
         T outsumi = 0.0f;
+
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            out_data[i*M + j] = exp(in_data[i*M + j]);
+        }
+
         #pragma acc loop reduction(+:outsumi)
         for(int j = 0; j < M; j++) {
-            outsumi += exp(in_data[i*M + j]);
-            out_data[i*M + j] = exp(in_data[i*M + j]);
+            outsumi += out_data[i*M + j];
+            
         }
         #pragma acc loop
         for(int j = 0; j < M; j++) {
@@ -662,15 +682,19 @@ void acc_pad2D_inner(const Tensor4D<T> &pre_pad, Tensor4D<T> *post_pad, int padd
         for(int c = 0; c < C; c++) {
             for(int i = 0; i < N; i++) {
                 for(int j = 0; j < M; j++) {
-                   
-                    // IF_PLOG(plog::debug) {
-                    //     printf("Post_pad[%d, %d, %d, %d] = Pre_pad[%d, %d, %d, %d](%+11.5f)", b, c, i+padding_top, j+padding_left, b, c, i, j, pre_pad_data[b*C*M*N + c*M*N + i*M + j]);
-                    // }
+                    
+                    #ifndef _OPENACC
+                    IF_PLOG(plog::debug) {
+                        printf("Post_pad[%d, %d, %d, %d] = Pre_pad[%d, %d, %d, %d](%+11.5f)", b, c, i+padding_top, j+padding_left, b, c, i, j, pre_pad_data[b*C*M*N + c*M*N + i*M + j]);
+                    }
+                    #endif
                     
                     post_pad_data[b*padded_N*padded_M * C + c*padded_N*padded_M + (i+padding_top + i*padding_inner_rows)*padded_M + (j + padding_left + j*padding_inner_columns)] = pre_pad_data[b*C*M*N + c*M*N + i*M + j];
-                    // // IF_PLOG(plog::debug) {
-                    //     printf(" = %+11.5f\n", post_pad_data[b*padded_N*padded_M * C + c*padded_N*padded_M + (i+padding_top + i*padding_inner_rows)*padded_M + (j + padding_left + j*padding_inner_columns)]);
-                    // // }
+                    #ifndef _OPENACC
+                    IF_PLOG(plog::debug) {
+                        printf(" = %+11.5f\n", post_pad_data[b*padded_N*padded_M * C + c*padded_N*padded_M + (i+padding_top + i*padding_inner_rows)*padded_M + (j + padding_left + j*padding_inner_columns)]);
+                    }
+                    #endif
                 }
             }
         }
@@ -789,7 +813,144 @@ void acc_make_batch(const Neural::Tensor4D<T> &inputs, Neural::Tensor4D<T> *batc
 
 }
 //comment 2
+
 template void acc_make_batch<double>(const Neural::Tensor4D<double> &, Neural::Tensor4D<double> *, int);
 template void acc_make_batch<int>(const Neural::Tensor4D<int> &, Neural::Tensor4D<int> *, int);
 
+template<class T>
+Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &labels) {
+    LOGD << "acc_calc_confusion_matrix";
+
+    Shape4D output_shape = output.shape(), labels_shape = labels.shape();
+    assert(output_shape==labels_shape);
+    assert((output_shape[2]==1) && (output_shape[3]==1));
+
+    int B = output_shape[0], M = output_shape[1];
+
+    Tensor4D<int> *confusion_matrix = new Tensor4D<int>(Shape4D(M, 4, 1, 1));
+    confusion_matrix->create_acc();
+    acc_zeros<int>(confusion_matrix);
+    _LLOG(debug, confusion_matrix);
+
+    T *output_data = output.data();
+    int *labels_data = labels.data(), *conf_data = confusion_matrix->data();
+
+    _LLOG(debug, (&output));
+    _LLOG(debug, (&labels));
+
+    LOGD << "Calculating confusion matrix";
+    Tensor4D<int> *predicted = new Tensor4D<int>(labels.shape());
+    predicted->create_acc();
+    acc_zeros(predicted);
+    int *predicted_data = predicted->data();
+    int psize = predicted->size();
+
+    #pragma acc parallel loop present(output_data[:B*M], labels_data[:B*M]) copy(conf_data[:M*4]) copy(predicted_data[:psize])
+    for(int i = 0; i < B; i++) {
+        T mxlbl = 0.0f;
+        int predicted_lbl = 0, actual_lbl = 0;
+
+        #pragma acc loop reduction(max: mxlbl)
+        for(int j = 0; j < M; j++) {
+            T lbl = output_data[i*M + j];
+            if(lbl > mxlbl) {
+                mxlbl = lbl;
+                predicted_lbl = j;
+            }
+        }
+
+        predicted_data[i*M + predicted_lbl] = 1;
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            if(labels_data[i*M + j] == 1) {
+                actual_lbl = j;
+            }
+        }
+
+        #pragma acc loop
+        for(int j = 0; j < M; j++) {
+            bool actual_f, predict_f;
+
+            if(actual_lbl == j) {
+                actual_f = 1;
+            }
+            else {
+                actual_f = 0;
+            }
+
+            if(predicted_lbl == j) {
+                predict_f = 1;
+            }
+            else {
+                predict_f = 0;
+            }
+
+            if( (actual_f==1) && (predict_f==1) ) {
+                //true positive
+                #pragma acc atomic update
+                conf_data[j*4 + 0]++;
+            }
+            else if( (actual_f==1) && (predict_f==0) ) {
+                //false negative
+                #pragma acc atomic update
+                conf_data[j*4 + 1]++;
+            }
+            else if( (actual_f==0) && (predict_f==1) ) {
+                //false positive
+                #pragma acc atomic update
+                conf_data[j*4 + 2]++;
+            }
+            else if( (actual_f==0) && (predict_f==0) ) {
+                //true negative
+                #pragma acc atomic update
+                conf_data[j*4 + 3]++;
+            }
+        }
+    }
+    
+    _LLOG(debug, predicted);
+    delete predicted;
+    _LLOG(debug, confusion_matrix);
+
+    return confusion_matrix;
+}
+
+template Tensor4D<int> * acc_calc_confusion_matrix<double>(Tensor4D<double> &, Tensor4D<int> &);
+
+vector<Tensor4D<double> *> calc_metrics(Tensor4D<int> &confusion_matrix) {
+    int M = confusion_matrix.shape()[0];
+    Tensor4D<double> *recall_class = new Tensor4D<double>(M, 1, 1, 1);
+    Tensor4D<double> *precision_class = new Tensor4D<double>(M, 1, 1, 1);
+
+    LOGI << "Calculating Precision, Recall, Accuracy, F1 Metrics";
+
+    for(int i = 0; i < M; i++) {
+        int tp, fn, fp, tn;
+        double recall = 0.0f, precision = 0.0f;
+
+        tp = confusion_matrix.iat(i*4 + 0);
+        fn = confusion_matrix.iat(i*4 + 1);
+        fp = confusion_matrix.iat(i*4 + 2);
+        tn = confusion_matrix.iat(i*4 + 3);
+
+        precision = tp;
+        if( (tp+fp)!=0 ) {
+            precision/=(tp+fp);
+        }
+        precision_class->iat(i) = precision;
+        recall = tp;
+        if( (tp+fn)!=0 ) {
+            recall/=(tp+fn);
+        }
+        recall_class->iat(i) = recall;
+    }
+
+    _LLOG(debug, precision_class);
+    _LLOG(debug, recall_class);
+
+    vector<Tensor4D<double> *> ret;
+    ret.push_back(precision_class);
+    ret.push_back(recall_class);
+    return ret;
+}
 /////

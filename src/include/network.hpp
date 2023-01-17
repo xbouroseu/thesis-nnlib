@@ -23,6 +23,10 @@ namespace Neural {
         Network(Neural::Shape4D);
         ~Network();
 
+        void init();
+        void forward(Neural::Tensor4D<double> &, std::vector<Neural::Tensor4D<double> *> &, std::vector<Neural::Tensor4D<double> *> &);
+        Neural::Tensor4D<double> *forward(Neural::Tensor4D<double> &init_input);
+
         template<class L, class ... Args>
         void add_layer(Args ...args) {
             LOGV << "Network::add_layer";
@@ -44,7 +48,8 @@ namespace Neural {
         void set_acc(bool);
         void alloc();
         void forward();
-        void train(const Tensor4D<double> *, const Tensor4D<int> *, const Tensor4D<double> *, const Tensor4D<int> *, int, bool, double, std::string, int fepochs=0, int fsteps=0);
+        void eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, double &recall, double &precision);
+        void train(Tensor4D<double> &, Tensor4D<int> &, Tensor4D<double> &, Tensor4D<int> &, int, bool, double, std::string, int fepochs = 0, int fsteps = 0);
     };
 }
 

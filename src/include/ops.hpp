@@ -5,13 +5,15 @@
 #include "tensor.hpp"
 #include "utils.hpp"
 
-#if defined(_DEBUG_OP) && !defined(_OPENACC)
+#if !defined(_OPENACC)
 #define SAFEDATA
 #endif
 
 constexpr int DEBUG__ = 1;
 
 void tparallel_conv5(double *conv_input, double *conv_filters, double *conv_output, int batch_size, int in_channels, int in_height, int in_width, int out_channels , int out_height, int out_width, int filter_size, int stride, bool debug);
+
+std::vector<Neural::Tensor4D<double> *> calc_metrics(Neural::Tensor4D<int> &confusion_matrix);
 
 template<class T> void acc_copy(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *);
 template<class T> void acc_add(Neural::Tensor4D<T> *, const Neural::Tensor4D<T> &);
@@ -35,6 +37,8 @@ template<class T> Neural::Tensor4D<T>* acc_padded2D_inner(const Neural::Tensor4D
 template<class T> void acc_rev_pad2D(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int , int , int , int );
 template<class T> void acc_normalize_img(Neural::Tensor4D<T> *);
 template <class T> void acc_make_batch(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int );
+template<class T> Neural::Tensor4D<int> * acc_calc_confusion_matrix(Neural::Tensor4D<T> &, Neural::Tensor4D<int> &);
+
 //comment 4
 namespace Neural {
     namespace Activations {

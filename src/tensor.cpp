@@ -349,3 +349,7 @@ template class Tensor4D<int>;
 template<class T> LabeledData<T>::LabeledData(Tensor4D<T> *cdata, Tensor4D<int> *clabels) : data(cdata), labels(clabels) {}
 template class LabeledData<double>;
 template class LabeledData<float>;
+
+void assert_shape(Shape4D actual, Shape4D proto) {
+    assert((actual[0]!=-1) && (actual[1]==proto[1]) && (actual[2]==proto[2]) && (actual[3]==proto[3]));
+}

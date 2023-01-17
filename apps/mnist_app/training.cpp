@@ -131,7 +131,6 @@ int main(int argc, char *argv[]) {
     num_hidden_nodes = 256;
     num_outputs = 10;
 //TODO find solution to data locality, relative? cmd argument ?, work only by running inside app folder?
-//TODO make acc for app and lib? recursive?
 
     Network testnet(train_data->shape()); //destructor?
 
@@ -153,10 +152,19 @@ int main(int argc, char *argv[]) {
     assert(batch_size <= train_data->shape()[0]);
     PLOGI << "batch_size = " << batch_size;
 
+    int fsteps=0, fepochs=0;
+
+    if(argc>=4) { fepochs=atoi(argv[3]); }
+    if(argc>=5) { fsteps=atoi(argv[4]); }
+
     double learning_rate = 0.05;
     
-    PLOGI << "testnet.train(train_data_tensor, train_labels_tensor, " << batch_size << ", true, " << learning_rate << ", \"CrossEntropy\")";
-    testnet.train(train_data.get(), train_labels.get(), valid_data.get(), valid_labels.get(), batch_size, true, learning_rate, "CrossEntropy");
+    LOGW.printf("testnet.train(*train_data.get(), *train_labels.get(), *valid_data.get(), *valid_labels.get(), %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
+    testnet.train(*train_data.get(), *train_labels.get(), *valid_data.get(), *valid_labels.get(), batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
 
+    double precision_test, recall_test;
+    LOGW << "testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test)";
+    testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test);
+    LOGW << "Precision_test: " << precision_test << " | Recall_test: " << recall_test;
     return 0;
 }

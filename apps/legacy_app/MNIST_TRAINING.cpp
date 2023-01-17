@@ -15,7 +15,7 @@
 //#include <curand_kernel.h>
 //#include <math.h>
 //using namespace cv;
-#include <cuda.h>
+// #include <cuda.h>
 using namespace std;
 
 #define DEPSILON 0.5E-15
@@ -971,13 +971,13 @@ int main(int argc, char *argv[]) {
     std::cout << "Hello World convolutions" << std::endl;    
     
     int num_images = 0, num_labels = 0, img_size = 0, num_rows = 0, num_cols = 0; 
-    uchar **train_img_data = read_mnist_images("data/train-images-idx3-ubyte", num_images, img_size, num_rows, num_cols);
-    uchar *train_labels_data = read_mnist_labels("data/train-labels-idx1-ubyte", num_labels);
+    uchar **train_img_data = read_mnist_images("../data/train-images-idx3-ubyte", num_images, img_size, num_rows, num_cols);
+    uchar *train_labels_data = read_mnist_labels("../data/train-labels-idx1-ubyte", num_labels);
     
     int test_num_images = 0, test_num_labels = 0, test_img_size = 0, test_num_rows = 0, test_num_cols = 0;
     
-    uchar **test_img_data = read_mnist_images("data/t10k-images-idx3-ubyte", test_num_images, test_img_size, test_num_rows, test_num_cols);
-    uchar *test_labels_data = read_mnist_labels("data/t10k-labels-idx1-ubyte", test_num_labels);
+    uchar **test_img_data = read_mnist_images("../data/t10k-images-idx3-ubyte", test_num_images, test_img_size, test_num_rows, test_num_cols);
+    uchar *test_labels_data = read_mnist_labels("../data/t10k-labels-idx1-ubyte", test_num_labels);
     
     float **c_test_images = convert_train_dataset_f(test_img_data, test_num_images, 28, 28);
     float **c_train_images = convert_train_dataset_f(train_img_data, num_images, 28, 28);
@@ -991,7 +991,7 @@ int main(int argc, char *argv[]) {
     double *test_images = data2mono(test_img_data, test_num_images, test_img_size, dml);
     double *test_labels = labels1hot(test_labels_data, test_num_images, num_outputs);
    
-    int batch_size = 32;
+    int batch_size = atoi(argv[1]);
     int num_hidden_nodes3 = 256;
     int num_channels = 1;
     
@@ -1098,10 +1098,10 @@ int main(int argc, char *argv[]) {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     //////////////
-    int arg1 = atoi(argv[1]);
-    cout  << "Steps: " << arg1 << endl;
+    int arg2 = atoi(argv[2]);
+    cout  << "Steps: " << arg2 << endl;
 //     string step_str = argv[1];
-    int steps = arg1;
+    int steps = arg2;
     double learning_rate = 0.05;
     int batch_start = 0;
     
@@ -1183,7 +1183,27 @@ int main(int argc, char *argv[]) {
         tparallel_matrix_multiply(train_out_hidden3, train_weights_output4, train_wx_output4, batch_size, num_hidden_nodes3, num_outputs);
         tparallel_matrix_add_row(train_wx_output4, train_biases_output4, batch_size, num_outputs);
         tparallel_softmax(train_out_output4, train_wx_output4, train_out_output4_sum, batch_size, num_outputs);  
-        
+
+        if(s == 500) {
+            #pragma acc update self(train_out_output4[:batch_size*num_outputs])
+            #pragma acc update self(train_labels_batch[:batch_size*num_outputs])
+            cout << "[Outputs]" << endl;
+            for(int i = 0; i < batch_size; i++) {
+                for(int m = 0; m < num_outputs; m++ ) {
+                    printf("%11.5f|", train_out_output4[i*num_outputs + m]);
+                }
+                cout << endl;
+            }
+
+            cout << "[Labels]" << endl;
+            for(int i = 0; i < batch_size; i++) {
+                for(int m = 0; m < num_outputs; m++ ) {
+                    printf("%d|", train_labels_batch[i*num_outputs + m]);
+                }
+                cout << endl;
+            }
+        }
+
         #pragma acc parallel loop collapse(2)
         for(int i = 0; i < batch_size; i++) {
             for(int m = 0; m < num_outputs; m++ ) {
@@ -1226,59 +1246,59 @@ int main(int argc, char *argv[]) {
     
     cout << endl;
     
-    bool save_network = true;
-    // save network configuration in file
-    if(save_network) {
-        clock_t tmstmp = clock();
-        time_t rawtime;
-        struct tm *timeinfo;
-        time(&rawtime);
-        timeinfo = localtime (&rawtime);
+//     bool save_network = true;
+//     // save network configuration in file
+//     if(save_network) {
+//         clock_t tmstmp = clock();
+//         time_t rawtime;
+//         struct tm *timeinfo;
+//         time(&rawtime);
+//         timeinfo = localtime (&rawtime);
         
-        string tmss = ctime(&rawtime);
+//         string tmss = ctime(&rawtime);
         
-        char time_string[80];
-        strftime(time_string, 80, "%F_%T", timeinfo);
+//         char time_string[80];
+//         strftime(time_string, 80, "%F_%T", timeinfo);
         
-        cout << "Saving network: " << tmstmp << endl;
-//         cout << rawtime << endl << tmss << endl << time_string << endl;
-        string iters = to_string(steps);
-        string time_str(time_string);
-        string netname = "NEURAL_NETWORK_TRAINED_" + iters + "_" + time_str + ".csv";
+//         cout << "Saving network: " << tmstmp << endl;
+// //         cout << rawtime << endl << tmss << endl << time_string << endl;
+//         string iters = to_string(steps);
+//         string time_str(time_string);
+//         string netname = "NEURAL_NETWORK_TRAINED_" + iters + "_" + time_str + ".csv";
         
-        ofstream out_param;
-        out_param.open(netname, ios::out | ios::app);
+//         ofstream out_param;
+//         out_param.open(netname, ios::out | ios::app);
         
-        out_param << 4 << endl;
+//         out_param << 4 << endl;
         
-        // TODO: ADD to save network training configuration, steps etc.
+//         // TODO: ADD to save network training configuration, steps etc.
         
-        // input
-        out_param << num_channels_conv1 << ";28;28" << endl;
+//         // input
+//         out_param << num_channels_conv1 << ";28;28" << endl;
         
-        out_param << "1;3;2;" << depth_conv1 << ";" << num_channels_conv1 << ";" << filter_size_conv1 << ";" << filter_size_conv1 << ";" << stride_conv1 << ";0" << endl;
-        out_param << "2;3;2;" << depth_conv2 << ";" << num_channels_conv2 << ";" << filter_size_conv2 << ";" << filter_size_conv2 << ";" << stride_conv2 << ";0" << endl;
-        out_param << "3;2;2;" << out_vol_size_conv2 << ";" << num_hidden_nodes3 << endl;
-        out_param << "4;1;1;" << num_hidden_nodes3 << ";" << num_outputs << endl;
+//         out_param << "1;3;2;" << depth_conv1 << ";" << num_channels_conv1 << ";" << filter_size_conv1 << ";" << filter_size_conv1 << ";" << stride_conv1 << ";0" << endl;
+//         out_param << "2;3;2;" << depth_conv2 << ";" << num_channels_conv2 << ";" << filter_size_conv2 << ";" << filter_size_conv2 << ";" << stride_conv2 << ";0" << endl;
+//         out_param << "3;2;2;" << out_vol_size_conv2 << ";" << num_hidden_nodes3 << endl;
+//         out_param << "4;1;1;" << num_hidden_nodes3 << ";" << num_outputs << endl;
         
-        // conv 1
-        param2file_csv(train_weights_conv1, netname, 1, wflat_conv1*depth_conv1, 1);
-        param2file_csv(train_biases_conv1, netname, 2, depth_conv1, 1);
+//         // conv 1
+//         param2file_csv(train_weights_conv1, netname, 1, wflat_conv1*depth_conv1, 1);
+//         param2file_csv(train_biases_conv1, netname, 2, depth_conv1, 1);
         
-        // conv 2
-        param2file_csv(train_weights_conv2, netname, 1, wflat_conv2*depth_conv2, 2);
-        param2file_csv(train_biases_conv2, netname, 2, depth_conv2, 2);
+//         // conv 2
+//         param2file_csv(train_weights_conv2, netname, 1, wflat_conv2*depth_conv2, 2);
+//         param2file_csv(train_biases_conv2, netname, 2, depth_conv2, 2);
         
-        // hidden 3
-        param2file_csv(train_weights_hidden3, netname, 1, out_vol_size_conv2 * num_hidden_nodes3, 3);
-        param2file_csv(train_biases_hidden3, netname, 2, num_hidden_nodes3, 3);
+//         // hidden 3
+//         param2file_csv(train_weights_hidden3, netname, 1, out_vol_size_conv2 * num_hidden_nodes3, 3);
+//         param2file_csv(train_biases_hidden3, netname, 2, num_hidden_nodes3, 3);
         
-        // output 4
-        param2file_csv(train_weights_output4, netname, 1, num_hidden_nodes3*num_outputs, 4);
-        param2file_csv(train_biases_output4, netname, 2, num_outputs, 4);
+//         // output 4
+//         param2file_csv(train_weights_output4, netname, 1, num_hidden_nodes3*num_outputs, 4);
+//         param2file_csv(train_biases_output4, netname, 2, num_outputs, 4);
         
-        out_param.close();
-    }
+//         out_param.close();
+//     }
     
     /*
     int a = 0;
