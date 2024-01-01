@@ -67,7 +67,7 @@ and the apps with:
 $ make app
 ```
 
-## Step 4: Run the mnist training application
+## Step 4: Run the MNIST training application
 After building the library and the sample apps we can run one application which is training and evaluating a Convolution Neural Network on the MNIST dataset.
 
 Let's assume the variable `x` is the batch size:
