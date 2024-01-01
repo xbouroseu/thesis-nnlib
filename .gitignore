@@ -6,3 +6,4 @@ apps/test_app/build/
 apps/legacy_app/build/
 *.d
 *.d.*
+experimental/
