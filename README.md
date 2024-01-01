@@ -1,7 +1,7 @@
 # thesis-nnlib
 ## A library for building neural networks in nvidia-gpu accelerated systems
 
-# Usage
+# Example Usage
 
 ```cpp
 unique_ptr<Tensor4D<double>> train_data, valid_data, test_data; // placeholder. assume initialized
