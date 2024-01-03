@@ -1,5 +1,5 @@
 # thesis-nnlib
-## A library for building neural networks in nvidia-gpu accelerated systems
+## A framework for building neural networks in nvidia-gpu accelerated systems
 
 # Example Usage
 
