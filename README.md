@@ -65,7 +65,7 @@ git clone https://github.com/xbouroseu/thesis-nnlib
 cd thesis-nnlib
 ```
 
-Build the framework and apps with:
+Build the framework and samples with:
 ```
 make all
 ```
@@ -75,13 +75,10 @@ Alternatively you can only build the library with:
 make lib
 ``` 
 
-and the apps with:
+and the samples with:
 ```
-make app
+make examples
 ```
-
-
-
 
 ### Step 4: Run the sample MNIST training application
 After building the library and the sample apps we can run one example application which is training and evaluating a Convolution Neural Network on the MNIST dataset.
