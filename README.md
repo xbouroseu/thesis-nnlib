@@ -1,5 +1,5 @@
 # thesis-nnlib
-## A C++ AI framework for building deep neural networks in nvidia-gpu accelerated systems
+## A C++ framework for training and evaluation of deep neural networks in nvidia gpu-accelerated systems
 
 # Example Usage
 
