@@ -1,7 +1,7 @@
 # thesis-nnlib
 ## A C++ framework for training and evaluation of deep neural networks in nvidia gpu-accelerated systems
 
-# Example Usage
+## Example Usage
 
 ```cpp
 Tensor4D<double> train_data, valid_data, test_data; // assume initialized
@@ -32,23 +32,23 @@ double precision_test, recall_test;
 testnet.eval(test_data, test_labels, recall_test, precision_test);
 ```
 
-# Installation
-## Requirements
+## Installation
+### Requirements
 - Nvidia GPU
 - Docker
 
-## Step 1: Pull the docker image
+### Step 1: Pull the docker image
 ```
 docker pull sirmihawk/thesis:hpc22.11_build
 ```
 
-## Step 2: Create a new docker container
+### Step 2: Create a new docker container
 The --rm option will create a container which will be auto-removed once the session is ended.
 ```
 docker run -it --rm --gpus all sirmihawk/thesis:hpc22.11_build
 ```
 
-## Step 3: Build the library and sample apps
+### Step 3: Build the library and sample apps
 Clone the repository inside the container:
 ```
 git clone https://github.com/xbouroseu/thesis-nnlib
@@ -70,7 +70,7 @@ and the apps with:
 make app
 ```
 
-## Step 4: Run the MNIST training application
+### Step 4: Run the MNIST training application
 After building the library and the sample apps we can run one example application which is training and evaluating a Convolution Neural Network on the MNIST dataset.
 
 
