@@ -11,12 +11,12 @@ TARGETS := $(notdir $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(TARGETS))
 #################  ####################
 
-all: lib app
+all: lib examples
 
 lib: acc acchost noacc
 
-app:
-	@cd apps && $(MAKE) all && cd ..
+examples:
+	@cd samples && $(MAKE) all && cd ..
 
 SUFFIX_ACC = acc
 BUILD_DIR_ACC = $(BUILD_DIR)/$(SUFFIX_ACC)
