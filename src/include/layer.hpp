@@ -91,7 +91,7 @@ namespace Neural::Layers {
         std::string padding_type{""};
 
     protected:
-       Neural::Tensor4D<double> * forward_calc_input(Neural::Tensor4D<double> &);
+        Neural::Tensor4D<double> * forward_calc_input(Neural::Tensor4D<double> &);
         Neural::Tensor4D<double> * forward_calc_output_preact(Neural::Tensor4D<double> &);
 
         Neural::Tensor4D<double> * backprop_calc_drv_error_weights(Neural::Tensor4D<double> &, Neural::Tensor4D<double> &);
