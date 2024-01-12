@@ -1,5 +1,5 @@
 # thesis-nnlib
-## A C++ framework for training and evaluation of deep neural networks in nvidia gpu-accelerated systems
+## A TensorFlow-inspired C++ framework for training and evaluation of deep neural networks in nvidia gpu-accelerated systems. 
 
 ### Example usage
 
