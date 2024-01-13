@@ -24,8 +24,8 @@ Network testnet(train_data.shape());
 
 // Add Conv Layer with activation
 int depth_conv1 = 64;
-int filter_size_conv1 = 5; // can also be vector<int>(5,5)
-int stride_conv1 = 1; // 1-stride in all directions. can be vector<int>(1,2) meaning 1-stride horizontal, 2-stride vertical
+int filter_size_conv1 = 5; // can also be vector<int>(a,b)
+int stride_conv1 = 1; // 1-stride in all directions. Can also be vector<int>(x,y) meaning x-stride horizontal, y-stride vertical
 string padding_type_conv1 = "same"; // can also be "valid"
 
 testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, padding_type_conv1);
