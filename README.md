@@ -1,4 +1,4 @@
-# thesis-nnlib
+# NNLib
 ## A C++ framework, inspired by TensorFlow/Keras, for training and evaluation of deep neural networks in Nvidia GPU-accelerated systems. 
 
 ### Example usage
