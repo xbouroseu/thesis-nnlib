@@ -17,16 +17,25 @@ using Neural::Network;
 Tensor4D<double> train_data, valid_data, test_data; // assume initialized
 Tensor4D<int> train_labels, valid_labels, test_labels; // assume initialized
 
-// Initialize network with input data shape (channels, width, height). Batch size is left undefined.
+// We will create a 3-layer network with a Conv->Fc->Output architecture.
+// Initialize network with input data shape.
+// train_data.shape() := Shape4D(-1, channels, width, height)
 Network testnet(train_data.shape());
 
 // Add Conv Layer with activation
-testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, padding_conv1);
+int depth_conv1 = 64;
+int filter_size_conv1 = 5; // can also be vector<int>(5,5)
+int stride_conv1 = 1; // 1-stride in all directions. can be vector<int>(1,2) meaning 1-stride horizontal, 2-stride vertical
+string padding_type_conv1 = "same"; // can also be "valid"
+
+testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, padding_type_conv1);
 
 // Add hidden FC layer with activation
+int num_hidden_nodes = 256;
 testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
 
 // Add output layer
+int num_outputs = 10;
 testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
 // Set hyperparameters
