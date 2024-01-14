@@ -18,8 +18,9 @@ Tensor4D<double> train_data, valid_data, test_data; // assume initialized
 Tensor4D<int> train_labels, valid_labels, test_labels; // assume initialized
 
 // We will create a 3-layer network with a Conv->Fc->Output architecture.
-// Initialize network with input data shape.
-// train_data.shape() := Shape4D(-1, channels, width, height)
+// Initialize network with input data shape but with batch_size=undefined
+// train_data.shape() := Shape4D(num_samples, channels, width, height)
+// testnet.input_shape := Shape4D(-1, channels, width, height)
 Network testnet(train_data.shape());
 
 // Add Conv Layer with activation
