@@ -1,5 +1,5 @@
-# thesis-nnlib
-## A C++ framework for training and evaluation of deep neural networks in nvidia gpu-accelerated systems
+# NNLib
+## A C++ framework, inspired by TensorFlow/Keras, for training and evaluation of deep neural networks in Nvidia GPU-accelerated systems. 
 
 ### Example usage
 
@@ -17,16 +17,26 @@ using Neural::Network;
 Tensor4D<double> train_data, valid_data, test_data; // assume initialized
 Tensor4D<int> train_labels, valid_labels, test_labels; // assume initialized
 
-// Initialize network with input data shape (channels, width, height). Batch size is left undefined.
+// We will create a 3-layer network with a Conv->Fc->Output architecture.
+// Initialize network with input data shape but with batch_size=undefined
+// train_data.shape() := Shape4D(num_samples, channels, width, height)
+// testnet.input_shape := Shape4D(-1, channels, width, height)
 Network testnet(train_data.shape());
 
 // Add Conv Layer with activation
-testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, padding_conv1);
+int depth_conv1 = 64;
+int filter_size_conv1 = 5; // can also be vector<int>(a,b)
+int stride_conv1 = 1; // 1-stride in all directions. Can also be vector<int>(x,y) meaning x-stride horizontal, y-stride vertical
+string padding_type_conv1 = "same"; // can also be "valid"
+
+testnet.add_layer<Neural::Layers::Conv>(depth_conv1, "relu", filter_size_conv1, stride_conv1, padding_type_conv1);
 
 // Add hidden FC layer with activation
+int num_hidden_nodes = 256;
 testnet.add_layer<Neural::Layers::Fc>(num_hidden_nodes, "relu");
 
 // Add output layer
+int num_outputs = 10;
 testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
 // Set hyperparameters
