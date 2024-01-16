@@ -40,12 +40,12 @@ int num_outputs = 10;
 testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
 // Set hyperparameters
-int batch_size, max_epochs, max_steps_per_epoch;
-double learning_rate;
-bool accelerated;
+int batch_size = 32, max_epochs=0, max_steps_per_epoch=0; // 0=default, won't stop until algorithm decides
+double learning_rate = 0.1;
+bool accelerated_run = true;
 
 // Train network with train and validation datasets
-testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, accelerated, learning_rate, "CrossEntropy", max_epochs, max_steps_per_epoch);
+testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, accelerated_run, learning_rate, "CrossEntropy", max_epochs, max_steps_per_epoch);
 
 // Evaluate network against test dataset and obtain precision and recall metrics
 double precision_test, recall_test;
