@@ -41,7 +41,7 @@ testnet.add_layer<Neural::Layers::Fc>(num_outputs, "softmax");
 
 // Set hyperparameters
 int batch_size = 32, max_epochs=0, max_steps_per_epoch=0; // 0=default, won't stop until algorithm decides
-double learning_rate = 0.1;
+double learning_rate = 0.1f;
 bool accelerated_run = true;
 
 // Train network with train and validation datasets
