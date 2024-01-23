@@ -95,7 +95,7 @@ After building the library and the sample apps we can run one example applicatio
 
 
 ```
-cd apps/mnist_app
+cd samples/mnist_app
 ```
 
 The following command is for log-level `info` and batch_size `x`. We can also choose to run either the gpu-accelerated version or the non-accelerated one.
