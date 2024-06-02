@@ -55,6 +55,7 @@ testnet.eval(test_data, test_labels, recall_test, precision_test);
 ## Installation
 ### Requirements
 - Nvidia GPU
+- [Nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - Docker
 
 ### Step 1: Pull the docker image
