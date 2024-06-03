@@ -105,7 +105,7 @@ void Network::init() {
     }
 }
 
-void Network::eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, double &recall, double &precision) {
+void Network::eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, double &recall, double &precision, double &accuracy, double &f1_score) {
     Shape4D eval_data_shape = eval_dataset.shape(), eval_labels_shape = eval_labels.shape();
 
     vector<Tensor4D<int> *> confusion_matrices;
@@ -144,20 +144,31 @@ void Network::eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, d
     vector<Tensor4D<double> *> precision_recall_class = calc_metrics(*confusion_matrix_final);
     Tensor4D<double> * precision_class = precision_recall_class[0];
     Tensor4D<double> * recall_class = precision_recall_class[1];
+    Tensor4D<double> * accuracy_class = precision_recall_class[2];
+    Tensor4D<double> * f1_class = precision_recall_class[3];
 
     _LLOG(info, precision_recall_class[0]);
     _LLOG(info, precision_recall_class[1]);
+    _LLOG(info, precision_recall_class[2]);
+    _LLOG(info, precision_recall_class[3]);
 
-    LOGI << "Calculating precision/recall average over classes";
+    LOGI << "Calculating [precision, recall, accuracy, f1_score] macro average over classes";
 
     precision = 0.0f;
     recall = 0.0f;
+    accuracy = 0.0f;
+    f1_score = 0.0f;
+
     for(int m = 0; m < precision_class->size(); m++) {
         precision += precision_class->iat(m);
         recall += recall_class->iat(m);
+        accuracy += accuracy_class->iat(m);
+        f1_score += f1_class->iat(m);
     }
     precision /= precision_class->size();
     recall /= precision_class->size();
+    accuracy /= accuracy_class->size();
+    f1_score /= f1_class->size();
 
     delete confusion_matrix_final;
 }
@@ -178,11 +189,11 @@ void Network::train(Tensor4D<double> &train_dataset, Tensor4D<int> &train_labels
     
     PLOGI.printf("Steps per epoch: %d", iters);
     int e = 0;
-    vector<double> epoch_recalls, epoch_precisions;
+    vector<double> vec_epoch_recall, vec_epoch_precision, vec_epoch_accuracy, vec_epoch_f1;
     clock_t train_start = clock();
 
     do {
-        double epoch_loss = 0.0f, precision_epoch = 0.0f, recall_epoch = 0.0f;
+        double epoch_loss = 0.0f, precision_epoch_macro = 0.0f, recall_epoch_macro = 0.0f, accuracy_epoch_macro = 0.0f, f1_epoch_macro = 0.0f;
         clock_t epoch_start = clock();
         int iter=0;
 
@@ -276,7 +287,7 @@ void Network::train(Tensor4D<double> &train_dataset, Tensor4D<int> &train_labels
 
             PLOGD << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< /BACKWARD " << iter <<" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
 
-            PLOGI_IF((iter%100)==0).printf("Epoch: %d - Step %d - batch_start:%d - loss: %11.6f, epoch_loss: %11.6f, duration: %20.15f", e, iter, batch_start, loss, epoch_loss, dur(iter_start));
+            PLOGI_IF((iter%100)==0).printf("[Epoch: %d] Step %d | batch_start:%d | step_loss: %11.6f | epoch_loss: %11.6f | duration: %20.15f", e, iter, batch_start, loss, epoch_loss, dur(iter_start));
             iter++;
         }
         while((iter < iters) && ( (fsteps==0) || (iter<fsteps) ) );
@@ -285,16 +296,18 @@ void Network::train(Tensor4D<double> &train_dataset, Tensor4D<int> &train_labels
         //TODO make ops return?
         //TODO chain create_acc etc?
         LOGW << "Calculating metrics for valid_dataset";
-        LOGW << "this->eval(valid_dataset, valid_labels, recall_epoch, precision_epoch)";
-        this->eval(valid_dataset, valid_labels, recall_epoch, precision_epoch);
-        epoch_recalls.push_back(recall_epoch);
-        epoch_precisions.push_back(precision_epoch); 
+        LOGW << "this->eval(valid_dataset, valid_labels, recall_epoch_macro, recall_epoch_macro)";
+        this->eval(valid_dataset, valid_labels, recall_epoch_macro, recall_epoch_macro, accuracy_epoch_macro, f1_epoch_macro);
+        vec_epoch_recall.push_back(recall_epoch_macro);
+        vec_epoch_precision.push_back(precision_epoch_macro);
+        vec_epoch_accuracy.push_back(accuracy_epoch_macro);
+        vec_epoch_f1.push_back(f1_epoch_macro);
 
-        PLOGI << "Epoch [" << e << "] loss: " << epoch_loss << ", precision: " << precision_epoch << ", recall: " << recall_epoch << ", duration: " << dur(epoch_start);
+        PLOGI << "[Epoch " << e << "] epoch_loss: " << epoch_loss << " | precision_avg: " << precision_epoch_macro << " | recall_avg: " << recall_epoch_macro << " | accuracy_avg: " << accuracy_epoch_macro << " | f1_avg: " << f1_epoch_macro << " | duration: " << dur(epoch_start);
         e++;
         
     }
-    while( (e>0 && ( (epoch_recalls[e-1]-epoch_recalls[e-2]) >= 0.01 ) ) && ( (fepoch==0) || (e < fepoch)) );
+    while( (e>0 && ( (vec_epoch_f1[e-1]-vec_epoch_f1[e-2]) >= 0.0005 ) ) && ( (fepoch==0) || (e < fepoch)) );
     
     PLOGI << "Train duration: " <<  std::setprecision(15) << std::fixed << dur(train_start);
 
