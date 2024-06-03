@@ -292,7 +292,7 @@ void acc_flip_spatial(Tensor4D<T> *input) {
 template void acc_flip_spatial(Tensor4D<double> *input);
 
 template <class T>
-void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T> *C) {
+void acc_matrix_multiply_debug(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T> *C) {
     Shape4D a_shape = A.shape(), b_shape = B.shape(), c_shape = C->shape();
     Shape4D a_shape_flat = a_shape.flat(1);
     
@@ -301,11 +301,8 @@ void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T>
     }
     
     assert(a_shape_flat[1] == b_shape[0]);
-    
     assert(a_shape_flat[0] == c_shape[0]);
-    
     assert(b_shape[1] == c_shape[1]);
- 
     
     int N = a_shape[0], K = b_shape[0], M = b_shape[1];
     const T *a_data = A.data(), *b_data = B.data();
@@ -339,6 +336,45 @@ void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T>
                 cout << " = " << csumd << endl;
             }
             #endif
+            c_data[i*M + j] = csumd;
+        }
+    }
+
+    }
+}
+
+template void acc_matrix_multiply_debug(const Tensor4D<double> &A, const Tensor4D<double> &B, Tensor4D<double> *C);
+
+template <class T>
+void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T> *C) {
+    Shape4D a_shape = A.shape(), b_shape = B.shape(), c_shape = C->shape();
+    Shape4D a_shape_flat = a_shape.flat(1);
+    
+    if(b_shape.size() != (b_shape[0]*b_shape[1])) {
+        throw(std::invalid_argument("Error: B is not MxKx1. "));
+    }
+    
+    assert(a_shape_flat[1] == b_shape[0]);
+    assert(a_shape_flat[0] == c_shape[0]);
+    assert(b_shape[1] == c_shape[1]);
+    
+    int N = a_shape[0], K = b_shape[0], M = b_shape[1];
+    const T *a_data = A.data(), *b_data = B.data();
+    T *c_data = C->data();
+    
+    #pragma acc data copyin(a_data[:(N*K)], b_data[0:K*M]) copyout(c_data[0:N*M])
+    {
+
+    #pragma acc parallel loop collapse(2)
+    for(int i = 0; i < N; i++) {
+        for(int j = 0; j < M; j++) {
+            T csumd = 0.0f;
+                
+            #pragma acc loop seq reduction(+:csumd)
+            for(int t = 0; t < K; t++) {
+                csumd += a_data[i*K + t] * b_data[t*M + j];
+            }
+
             c_data[i*M + j] = csumd;
         }
     }
@@ -578,7 +614,7 @@ void acc_softmax(const Tensor4D<T> &input, Tensor4D<T> *output) {
     const T *in_data = input.data();
     T *out_data = output->data();
         
-    #pragma acc data present(in_data[:size]) present(out_data[:size])
+    #pragma acc data copyin(in_data[:size]) copyout(out_data[:size])
     {
     
     #pragma acc parallel loop
