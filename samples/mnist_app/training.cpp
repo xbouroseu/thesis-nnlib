@@ -165,7 +165,9 @@ int main(int argc, char *argv[]) {
     double precision_test, recall_test, accuracy_test, f1_score_test;
     LOGW << "testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test, accuracy_test, f1_score_test)";
     testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test, accuracy_test, f1_score_test);
-    LOGW << "Precision_test: " << precision_test << " | Recall_test: " << recall_test << " | Accuracy_test: " << accuracy_test << " | F1_score_test: " << f1_score_test;
+    LOWW << endl << endl;
+    LOGW << "Precision: " << precision_test << " | Recall: " << recall_test << " | Accuracy: " << accuracy_test << " | F1_score: " << f1_score_test;
+    LOWW << endl << endl;
     return 0;
 }
 
