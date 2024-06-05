@@ -162,10 +162,12 @@ int main(int argc, char *argv[]) {
     LOGW.printf("testnet.train(*train_data.get(), *train_labels.get(), *valid_data.get(), *valid_labels.get(), %d, true, %f, %s, %d, %d)",batch_size, learning_rate, "CrossEntropy", fepochs, fsteps);
     testnet.train(*train_data.get(), *train_labels.get(), *valid_data.get(), *valid_labels.get(), batch_size, true, learning_rate, "CrossEntropy", fepochs, fsteps);
 
-    double precision_test, recall_test;
-    LOGW << "testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test)";
-    testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test);
-    LOGW << "Precision_test: " << precision_test << " | Recall_test: " << recall_test;
+    double precision_test, recall_test, accuracy_test, f1_score_test;
+    LOGW << "testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test, accuracy_test, f1_score_test)";
+    testnet.eval(*test_data.get(), *test_labels.get(),recall_test, precision_test, accuracy_test, f1_score_test);
+    LOWW << endl << endl;
+    LOGW << "Precision: " << precision_test << " | Recall: " << recall_test << " | Accuracy: " << accuracy_test << " | F1_score: " << f1_score_test;
+    LOWW << endl << endl;
     return 0;
 }
 

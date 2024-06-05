@@ -292,7 +292,7 @@ void acc_flip_spatial(Tensor4D<T> *input) {
 template void acc_flip_spatial(Tensor4D<double> *input);
 
 template <class T>
-void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T> *C) {
+void acc_matrix_multiply_debug(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T> *C) {
     Shape4D a_shape = A.shape(), b_shape = B.shape(), c_shape = C->shape();
     Shape4D a_shape_flat = a_shape.flat(1);
     
@@ -301,11 +301,8 @@ void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T>
     }
     
     assert(a_shape_flat[1] == b_shape[0]);
-    
     assert(a_shape_flat[0] == c_shape[0]);
-    
     assert(b_shape[1] == c_shape[1]);
- 
     
     int N = a_shape[0], K = b_shape[0], M = b_shape[1];
     const T *a_data = A.data(), *b_data = B.data();
@@ -339,6 +336,45 @@ void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T>
                 cout << " = " << csumd << endl;
             }
             #endif
+            c_data[i*M + j] = csumd;
+        }
+    }
+
+    }
+}
+
+template void acc_matrix_multiply_debug(const Tensor4D<double> &A, const Tensor4D<double> &B, Tensor4D<double> *C);
+
+template <class T>
+void acc_matrix_multiply(const Tensor4D<T> &A, const Tensor4D<T> &B, Tensor4D<T> *C) {
+    Shape4D a_shape = A.shape(), b_shape = B.shape(), c_shape = C->shape();
+    Shape4D a_shape_flat = a_shape.flat(1);
+    
+    if(b_shape.size() != (b_shape[0]*b_shape[1])) {
+        throw(std::invalid_argument("Error: B is not MxKx1. "));
+    }
+    
+    assert(a_shape_flat[1] == b_shape[0]);
+    assert(a_shape_flat[0] == c_shape[0]);
+    assert(b_shape[1] == c_shape[1]);
+    
+    int N = a_shape[0], K = b_shape[0], M = b_shape[1];
+    const T *a_data = A.data(), *b_data = B.data();
+    T *c_data = C->data();
+    
+    #pragma acc data copyin(a_data[:(N*K)], b_data[0:K*M]) copyout(c_data[0:N*M])
+    {
+
+    #pragma acc parallel loop collapse(2)
+    for(int i = 0; i < N; i++) {
+        for(int j = 0; j < M; j++) {
+            T csumd = 0.0f;
+                
+            #pragma acc loop seq reduction(+:csumd)
+            for(int t = 0; t < K; t++) {
+                csumd += a_data[i*K + t] * b_data[t*M + j];
+            }
+
             c_data[i*M + j] = csumd;
         }
     }
@@ -578,7 +614,7 @@ void acc_softmax(const Tensor4D<T> &input, Tensor4D<T> *output) {
     const T *in_data = input.data();
     T *out_data = output->data();
         
-    #pragma acc data present(in_data[:size]) present(out_data[:size])
+    #pragma acc data copyin(in_data[:size]) copyout(out_data[:size])
     {
     
     #pragma acc parallel loop
@@ -847,60 +883,48 @@ Tensor4D<int> * acc_calc_confusion_matrix(Tensor4D<T> &output, Tensor4D<int> &la
 
     #pragma acc parallel loop present(output_data[:B*M], labels_data[:B*M]) copy(conf_data[:M*4]) copy(predicted_data[:psize])
     for(int i = 0; i < B; i++) {
-        T mxlbl = 0.0f;
-        int predicted_lbl = 0, actual_lbl = 0;
+        int predicted_idx = 0, actual_idx = 0;
+        T max_pred = 0.0f;
 
-        #pragma acc loop reduction(max: mxlbl)
+        // extract the highest prediciton and consider as predicted label
+        #pragma acc loop reduction(max: max_pred)
         for(int j = 0; j < M; j++) {
-            T lbl = output_data[i*M + j];
-            if(lbl > mxlbl) {
-                mxlbl = lbl;
-                predicted_lbl = j;
+            T lbl_score = output_data[i*M + j];
+            if(lbl_score > max_pred) {
+                max_pred = lbl_score;
+                predicted_idx = j;
             }
         }
 
-        predicted_data[i*M + predicted_lbl] = 1;
+        predicted_data[i*M + predicted_idx] = 1;
+
+        // get the actual label index
         #pragma acc loop
         for(int j = 0; j < M; j++) {
             if(labels_data[i*M + j] == 1) {
-                actual_lbl = j;
+                actual_idx = j;
             }
         }
 
         #pragma acc loop
         for(int j = 0; j < M; j++) {
-            bool actual_f, predict_f;
 
-            if(actual_lbl == j) {
-                actual_f = 1;
-            }
-            else {
-                actual_f = 0;
-            }
-
-            if(predicted_lbl == j) {
-                predict_f = 1;
-            }
-            else {
-                predict_f = 0;
-            }
-
-            if( (actual_f==1) && (predict_f==1) ) {
+            if( (predicted_idx==j) && (j==actual_idx) ) {
                 //true positive
                 #pragma acc atomic update
                 conf_data[j*4 + 0]++;
             }
-            else if( (actual_f==1) && (predict_f==0) ) {
+            else if( (predicted_idx!=j) && (j==actual_idx) ) {
                 //false negative
                 #pragma acc atomic update
                 conf_data[j*4 + 1]++;
             }
-            else if( (actual_f==0) && (predict_f==1) ) {
+            else if( (predicted_idx==j) && (j!=actual_idx) ) {
                 //false positive
                 #pragma acc atomic update
                 conf_data[j*4 + 2]++;
             }
-            else if( (actual_f==0) && (predict_f==0) ) {
+            else if( (predicted_idx!=j) && (j!=actual_idx) ) {
                 //true negative
                 #pragma acc atomic update
                 conf_data[j*4 + 3]++;
@@ -921,36 +945,82 @@ vector<Tensor4D<double> *> calc_metrics(Tensor4D<int> &confusion_matrix) {
     int M = confusion_matrix.shape()[0];
     Tensor4D<double> *recall_class = new Tensor4D<double>(M, 1, 1, 1);
     Tensor4D<double> *precision_class = new Tensor4D<double>(M, 1, 1, 1);
+    Tensor4D<double> *accuracy_class = new Tensor4D<double>(M, 1, 1, 1);
+    Tensor4D<double> *f1_class = new Tensor4D<double>(M, 1, 1, 1);
 
     LOGI << "Calculating Precision, Recall, Accuracy, F1 Metrics";
+    int total_tp, total_fn, total_fp;
 
     for(int i = 0; i < M; i++) {
-        int tp, fn, fp, tn;
-        double recall = 0.0f, precision = 0.0f;
+        int tp, fn, fp, tn, total_samples;
+        double recall=0.0f, precision=0.0f, accuracy=0.0f, f1=0.0f;
 
         tp = confusion_matrix.iat(i*4 + 0);
         fn = confusion_matrix.iat(i*4 + 1);
         fp = confusion_matrix.iat(i*4 + 2);
         tn = confusion_matrix.iat(i*4 + 3);
 
+        total_samples = tp + tn + fn + fp;
+        total_tp += tp;
+        total_fn +=fn;
+        total_fp += fp;
+
         precision = tp;
-        if( (tp+fp)!=0 ) {
+        if( (tp + fp)!=0 ) {
             precision/=(tp+fp);
         }
         precision_class->iat(i) = precision;
+
         recall = tp;
-        if( (tp+fn)!=0 ) {
+        if( (tp + fn)!=0 ) {
             recall/=(tp+fn);
         }
         recall_class->iat(i) = recall;
+
+        accuracy = tp + tn;
+        if( total_samples!=0 ) {
+            accuracy /= total_samples;
+        }
+        accuracy_class->iat(i) = accuracy;
+
+        f1 = 2*tp;
+        if( ( (2*tp) + fp + fn ) != 0 ) {
+            f1 /= ( (2*tp) + fp + fn);
+        }
+        f1_class->iat(i) = f1;
     }
+    
+
+    //micro averages
+
+    // double total_precision = total_tp, total_recall = total_tp, total_accuracy = total_tp + total_tn, total_f1 = 2*total_tp;
+    // if((total_tp + total_fp) != 0) {
+    //     total_precision /= (total_tp + total_fp);
+    // }
+
+    // if((total_tp + total_fn) != 0) {
+    //     total_recall /= (total_tp + total_fn);
+    // }
+
+    // if((total_tp + total_fn + total_fp + total_tn) != 0) {
+    //     total_accuracy /= (total_tp + total_fn + total_fp + total_tn);
+    // }
+
+    // if((2*total_tp + total_fn + total_fp) != 0) {
+    //     total_precision != (2*total_tp + total_fn + total_fp);
+    // }
 
     _LLOG(debug, precision_class);
     _LLOG(debug, recall_class);
+    _LLOG(debug, accuracy_class);
+    _LLOG(debug, f1_class);
 
     vector<Tensor4D<double> *> ret;
     ret.push_back(precision_class);
     ret.push_back(recall_class);
+    ret.push_back(accuracy_class);
+    ret.push_back(f1_class);
+
     return ret;
 }
 /////
