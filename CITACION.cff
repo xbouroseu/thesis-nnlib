@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+title: NNLib
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Christos
+    family-names: Boulmpasakos
+repository-code: 'https://www.github.com/xbouroseu/thesis-nnlib'
+abstract: >-
+  A C++ framework, inspired by TensorFlow/Keras, for
+  training and evaluation of deep neural networks in Nvidia
+  GPU-accelerated systems.
