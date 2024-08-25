@@ -1,6 +1,6 @@
 CXX = nvc++
 CXXFLAGS = --c++17 -I$(INCLUDE_DIR)
-LDFLAGS = -Mcudalib=curand
+LDFLAGS = -cudalib=curand
 INCLUDE_DIR = ../../src/include
 LIB_DIR = ../../lib
 BUILD_DIR = build
