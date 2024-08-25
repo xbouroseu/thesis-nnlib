@@ -60,7 +60,7 @@ testnet.eval(test_data, test_labels, recall_test, precision_test);
 
 ### Step 1: Pull the docker image
 ```
-docker pull sirmihawk/thesis:hpc22.11_build
+docker pull sirmihawk/thesis:hpc24.7_build
 ```
 
 ### Step 2: Create a new docker container
