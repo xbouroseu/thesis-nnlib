@@ -5,9 +5,9 @@
 #include <fstream>
 #include <iomanip>
 #include <cmath>
-#include <ctime>
 #include "network.hpp"
 #include "ops.hpp"
+
 
 using namespace std;
 
@@ -40,26 +40,35 @@ t4d * Network::forward(t4d &init_input) {
         
         _LLOG(debug, prev_output);
 
-        IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
-        t4d *input_i = layers[i]->forward_calc_input(*prev_output);
-        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LOGXPC(debug, "forward_calc_input",  t4d *input_i = layers[i]->forward_calc_input(*prev_output));
         _LLOG(debug, input_i);
+
         if(i>0) {
             delete prev_output;
         }
 
-        IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
-        unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*input_i));
-        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LOGXPC(debug, "forward_calc_output_preact",  unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*input_i)) );
         _LLOG(debug, output_preact);
+
         delete input_i;
 
-        IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
-        t4d * output_i = layers[i]->forward_activate(*output_preact.get());
-        PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+        _LOGXPC(debug, "forward_activate", t4d * output_i = layers[i]->forward_activate(*output_preact.get()));
         _LLOG(debug, output_i);
         
         prev_output = output_i;
+
+        // IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
+        // t4d *input_i = layers[i]->forward_calc_input(*prev_output);
+        // PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+
+        // IF_PLOG(plog::debug) { op_name = "forward_calc_output_preact"; PLOGD << op_name; op_start = clock(); }    
+        // unique_ptr<t4d> output_preact(layers[i]->forward_calc_output_preact(*input_i));
+        // PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+
+        // IF_PLOG(plog::debug) { op_name = "forward_activate"; PLOGD << op_name; op_start = clock(); }
+        // t4d * output_i = layers[i]->forward_activate(*output_preact.get());
+        // PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
+
     }
 
     return prev_output;
@@ -78,7 +87,6 @@ void Network::forward(t4d &init_input, vector<t4d *> &inputs, vector<t4d *> &out
 
         IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
         inputs.push_back(layers[i]->forward_calc_input(*prev_output));
-        
         PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
         _LLOG(debug, inputs[i]);
 

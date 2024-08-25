@@ -2,8 +2,11 @@
 #include <plog/Log.h>
 #include <ctime>
 
-#define _LLOG_A(_lvl, _what, _prens) IF_PLOG(plog::_lvl) { std::cout << "[" << _prens << "]\n" << _what->to_string() << std::endl; }
+#define _LLOG_A(_lvl, _what, _prens) IF_PLOG(plog::_lvl) { PLOG(plog::_lvl) << "[" << _prens << "]\n" << _what->to_string() << std::endl; }
 #define _LLOG(_lvl, _what) _LLOG_A(_lvl, _what, #_what)
+
+// execute and log action outputs: action_title, execution_time
+#define _LOGXPC(_loglvl, _action_title, _action_cmd) IF_PLOG(plog::_loglvl) { PLOGN << _action_title; clock_t op_start = std::clock(); } _action_cmd; PLOG(plog::_loglvl) << "Execution time: " << _action_title << " = " <<  std::setprecision(15) << std::fixed << dur(op_start)
 
 #ifdef _OPENACC
 constexpr int IS_OPENACC = 1;
