@@ -1,6 +1,6 @@
 CXX = nvc++
-CXXFLAGS = --c++17 -I$(INCLUDE_DIR) -Mcudalib=curand
-LDFLAGS = -Wl, -Mcudalib=curand
+CXXFLAGS = --c++17 -I$(INCLUDE_DIR) -cudalib=curand
+LDFLAGS = -Wl, -cudalib=curand
 # LDFLAGS = -Wl,-lopencv_core,-lopencv_imgcodecs,-lopencv_highgui,-lopencv_imgproc -Mcudalib=curand
 SRC_DIR = src
 INCLUDE_DIR = $(SRC_DIR)/include
