@@ -36,7 +36,7 @@ template<class T> void acc_pad2D(const Neural::Tensor4D<T> &, Neural::Tensor4D<T
 template<class T> Neural::Tensor4D<T>* acc_padded2D_inner(const Neural::Tensor4D<T> &, int , int , int , int , int , int );
 template<class T> void acc_rev_pad2D(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int , int , int , int );
 template<class T> void acc_normalize_img(Neural::Tensor4D<T> *);
-template <class T> void acc_make_batch(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int );
+template<class T> void acc_make_batch(const Neural::Tensor4D<T> &, Neural::Tensor4D<T> *, int );
 template<class T> Neural::Tensor4D<int> * acc_calc_confusion_matrix(Neural::Tensor4D<T> &, Neural::Tensor4D<int> &);
 
 //comment 4
