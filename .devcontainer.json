@@ -1,6 +1,6 @@
 {
-    "name": "HPC22.11_BUILD_FINAL",
-    "image": "sirmihawk/thesis:hpc22.11_build",
+    "name": "HPC24.7_BUILD_FINAL",
+    "image": "sirmihawk/thesis:hpc24.7_build",
     "runArgs": ["--gpus", "all"]
 }
 
