@@ -16,14 +16,14 @@ namespace Neural {
     class Network {
     private:    
         std::vector<Neural::Layers::Layer *> layers;
-        Neural::Shape4D input_shape_proto;
-        bool _debug{false}, _acc{false};
+        Neural::Shape4D __input_shape_proto;
         
     public:
-        Network(Neural::Shape4D);
+        Network(const Neural::Shape4D &);
         ~Network();
 
         void init();
+
         void forward(Neural::Tensor4D<double> &, std::vector<Neural::Tensor4D<double> *> &, std::vector<Neural::Tensor4D<double> *> &);
         Neural::Tensor4D<double> *forward(Neural::Tensor4D<double> &init_input);
 
@@ -34,7 +34,7 @@ namespace Neural {
             Neural::Shape4D prev_sh;          
             
             if(layers.size()==0) {
-                prev_sh = input_shape_proto;
+                prev_sh = __input_shape_proto;
             }
             else {
                 prev_sh = layers[layers.size()-1]->get_output_shape_proto();
@@ -44,12 +44,8 @@ namespace Neural {
             layers.push_back(newl);
         }
         
-        void set_debug(bool);
-        void set_acc(bool);
-        void alloc();
-        void forward();
-        void eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, double &recall, double &precision, double &accuracy, double &f1_score);
-        void train(Tensor4D<double> &, Tensor4D<int> &, Tensor4D<double> &, Tensor4D<int> &, int, bool, double, std::string, int fepochs = 0, int fsteps = 0);
+        void eval(const Tensor4D<double> &eval_dataset, const Tensor4D<int> &eval_labels, double &recall, double &precision, double &accuracy, double &f1_score);
+        void train(const Tensor4D<double> &, const Tensor4D<int> &, const Tensor4D<double> &, const Tensor4D<int> &, int, bool, double, std::string, int fepochs = 0, int fsteps = 0);
     };
 }
 

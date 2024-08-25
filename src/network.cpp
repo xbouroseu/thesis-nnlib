@@ -17,15 +17,15 @@ using Neural::Shape4D;
 
 typedef Tensor4D<double> t4d;
 
-Neural::Network::Network(Shape4D in_sh_pr) : input_shape_proto(Shape4D(-1, in_sh_pr[1], in_sh_pr[2], in_sh_pr[3])) {
+Neural::Network::Network(const Shape4D &in_sh_pr) : __input_shape_proto(Shape4D(-1, in_sh_pr[1], in_sh_pr[2], in_sh_pr[3])) {
     LOGD << "Network::Network";
-    LOGD << "input_shape_proto: " << input_shape_proto.to_string();
+    LOGD << "input_shape_proto: " << __input_shape_proto.to_string();
 }
 
 Network::~Network() {
     LOGD << "Network destructor";
-    for(auto it : layers) {
-        delete it;
+    for(int i=0; i < layers.size(); i++) {
+        delete layers[i];
     }
 }
 
@@ -78,6 +78,7 @@ void Network::forward(t4d &init_input, vector<t4d *> &inputs, vector<t4d *> &out
 
         IF_PLOG(plog::debug) { op_name = "forward_calc_input"; PLOGD << op_name; op_start = clock(); }
         inputs.push_back(layers[i]->forward_calc_input(*prev_output));
+        
         PLOGD << "Execution time: " << op_name << " = " <<  std::setprecision(15) << std::fixed << dur(op_start);
         _LLOG(debug, inputs[i]);
 
@@ -105,7 +106,7 @@ void Network::init() {
     }
 }
 
-void Network::eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, double &recall, double &precision, double &accuracy, double &f1_score) {
+void Network::eval(const Tensor4D<double> &eval_dataset, const Tensor4D<int> &eval_labels, double &recall, double &precision, double &accuracy, double &f1_score) {
     Shape4D eval_data_shape = eval_dataset.shape(), eval_labels_shape = eval_labels.shape();
 
     vector<Tensor4D<int> *> confusion_matrices;
@@ -172,7 +173,7 @@ void Network::eval(Tensor4D<double> &eval_dataset, Tensor4D<int> &eval_labels, d
 
     delete confusion_matrix_final;
 }
-void Network::train(Tensor4D<double> &train_dataset, Tensor4D<int> &train_labels, Tensor4D<double> &valid_dataset, Tensor4D<int> &valid_labels,  int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
+void Network::train(const Tensor4D<double> &train_dataset, const Tensor4D<int> &train_labels, const Tensor4D<double> &valid_dataset, const Tensor4D<int> &valid_labels,  int batch_size, bool acc, double learning_rate, string loss_fn, int fepoch, int fsteps) {
     PLOGI << "Network::train | batch_size: " << batch_size;
 
     Shape4D train_shape = train_dataset.shape(), train_labels_shape = train_labels.shape(), valid_shape = valid_dataset.shape(), valid_labels_shape = valid_labels.shape();
@@ -181,7 +182,7 @@ void Network::train(Tensor4D<double> &train_dataset, Tensor4D<int> &train_labels
     assert(batch_size <= train_shape[0]);
     assert_shape(train_shape, valid_shape);
     assert_shape(train_labels_shape, valid_labels_shape);
-    assert_shape(train_shape, input_shape_proto);
+    assert_shape(train_shape, __input_shape_proto);
 
     this->init();
     
