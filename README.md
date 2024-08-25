@@ -66,7 +66,7 @@ docker pull sirmihawk/thesis:hpc22.11_build
 ### Step 2: Create a new docker container
 The `--rm` option will create a container which will be auto-removed once the session is ended.
 ```
-docker run -it --rm --gpus all sirmihawk/thesis:hpc22.11_build
+docker run -it --rm --gpus all sirmihawk/thesis:hpc24.7_build
 ```
 
 ### Step 3: Build the library and sample apps
