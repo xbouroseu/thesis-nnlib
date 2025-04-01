@@ -167,7 +167,7 @@ Weighted::~Weighted() {
     LOGD << gph() + "destructor";
 }
 
-void Weighted::init() {
+void Weighted::_init() {
     LOGI << gph() + "::init";
     LOGI << "features: " << features;
     LOGI << "prev_shape_proto: " << prev_shape_proto.to_string();
@@ -189,14 +189,14 @@ void Weighted::init() {
     _LLOG(debug, biases);
 }
 
-void Weighted::backprop_update(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
+void Weighted::_backprop_update(double learning_rate, t4d &drv_error_output_preact, t4d &input) {
     LOGD << gph() + "Weighted::backprop_update";
     LOGD << "learning_rate: " << learning_rate;
     Shape4D output_shape = drv_error_output_preact.shape(), input_shape = input.shape();
     assert_shape(output_shape, output_shape_proto);
     assert_shape(input_shape, input_shape_proto);
 
-    unique_ptr<t4d> drv_error_weights(this->backprop_calc_drv_error_weights(drv_error_output_preact, input)), drv_error_biases(this->backprop_calc_drv_error_biases(drv_error_output_preact));
+    unique_ptr<t4d> drv_error_weights(this->_backprop_calc_drv_error_weights(drv_error_output_preact, input)), drv_error_biases(this->backprop_calc_drv_error_biases(drv_error_output_preact));
 
     double mltp = -1.0f * learning_rate;
 
@@ -267,7 +267,7 @@ Fc::~Fc() {
     LOGD << gph() + " Fc destructor";
 }
 
-t4d * Fc::forward_calc_input(t4d &prev_output) {
+t4d * Fc::_forward_calc_input(t4d &prev_output) {
     LOGD << gph() + "Fc::forward_calc_input";
     Shape4D prev_shape = prev_output.shape();
     assert_shape(prev_shape, prev_shape_proto);
@@ -281,7 +281,7 @@ t4d * Fc::forward_calc_input(t4d &prev_output) {
     return input;
 }
 
-t4d * Fc::forward_calc_output_preact(t4d &input) {
+t4d * Fc::_forward_calc_output_preact(t4d &input) {
     LOGD << gph() + "Fc::forward_calc_output";
     Shape4D input_shape = input.shape();
     assert_shape(input_shape, input_shape_proto);
@@ -299,7 +299,7 @@ t4d * Fc::forward_calc_output_preact(t4d &input) {
     return output_preact;
 }
 
-t4d * Fc::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &input) {
+t4d * Fc::_backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &input) {
     LOGD << gph() + "Fc::_backward_weights";
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
@@ -323,7 +323,7 @@ t4d * Fc::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &inp
     return drv_error_weights;
 }
 
-t4d * Fc::backprop_calc_drv_error_prev_output(t4d &drv_error_output_preact, t4d &input) {
+t4d * Fc::_backprop_calc_drv_error_prev_output(t4d &drv_error_output_preact, t4d &input) {
     LOGD << gph() + "Fc::_backward_input";
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
     assert_shape(input_shape, input_shape_proto);
@@ -412,7 +412,7 @@ Conv::~Conv() {
     LOGD << gph() + "Conv destructor";
 }
 
-t4d * Conv::forward_calc_input(t4d &prev_output) {
+t4d * Conv::_forward_calc_input(t4d &prev_output) {
     LOGD << gph() + "forward_calc_input";
 
     Shape4D prev_shape = prev_output.shape();
@@ -434,7 +434,7 @@ t4d * Conv::forward_calc_input(t4d &prev_output) {
     return input;
 }
 
-t4d * Conv::forward_calc_output_preact(t4d &input) {
+t4d * Conv::_forward_calc_output_preact(t4d &input) {
     LOGD << gph() + "forward_calc_output_preact";
     Shape4D input_shape = input.shape();
     assert_shape(input_shape, input_shape_proto);
@@ -454,7 +454,7 @@ t4d * Conv::forward_calc_output_preact(t4d &input) {
     return output_preact;
 }
 
-t4d * Conv::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &input) {
+t4d * Conv::_backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &input) {
     LOGD << gph() + "_backward_weights";
 
     Shape4D input_shape = input.shape(), output_shape = drv_error_output_preact.shape();
@@ -503,7 +503,7 @@ t4d * Conv::backprop_calc_drv_error_weights(t4d &drv_error_output_preact, t4d &i
 }
 
 // TODO input, drv_error_output not copies?
-t4d * Conv::backprop_calc_drv_error_prev_output(t4d &drv_error_output_preact, t4d &input) {
+t4d * Conv::_backprop_calc_drv_error_prev_output(t4d &drv_error_output_preact, t4d &input) {
     LOGD << gph() + "_backward_input";
     
     _LLOG(debug, (&drv_error_output_preact));

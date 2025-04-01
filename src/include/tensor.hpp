@@ -150,6 +150,7 @@ namespace Neural {
         
         //acc
         bool is_present_acc() const;
+        bool is_present_acc();
         void update_self_acc();
 
         void create_acc();
