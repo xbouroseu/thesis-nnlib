@@ -47,9 +47,9 @@ bool accelerated_run = true;
 // Train network with train and validation datasets
 testnet.train(train_data, train_labels, valid_data, valid_labels, batch_size, accelerated_run, learning_rate, "CrossEntropy", max_epochs, max_steps_per_epoch);
 
-// Evaluate network against test dataset and obtain precision and recall metrics
-double precision_test, recall_test;
-testnet.eval(test_data, test_labels, recall_test, precision_test);
+// Evaluate network against test dataset and obtain precision, recall, accuracy and f1_score metrics
+double precision_test, recall_test, accuracy, f1_score;
+testnet.eval(test_data, test_labels, recall_test, precision_test, accuracy, f1_score);
 ```
 
 ## Installation
