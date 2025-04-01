@@ -222,14 +222,7 @@ template<class T> void Tensor4D<T>::update_self_acc() {
 
 template<class G>
 void print_line(int __C, int __W) {
-    int __z;
-    
-    if constexpr(is_same<G, int>::value) {
-        __z = 6;
-    }
-    else {
-        __z = 12;
-    }
+    int __z = 12;
     
     for(int c = 0; c < __C; c++) {
         printf("-");
@@ -243,15 +236,29 @@ void print_line(int __C, int __W) {
     }
 }
 
+template<>
+void print_line<int>(int __C, int __W) {
+    int __z = 6;
+    
+    for(int c = 0; c < __C; c++) {
+        printf("-");
+        for(int w = 0; w < __W; w++) {
+            for(int z = 0; z < __z; z++) {
+                printf("-");
+            }
+            // printf("------------");
+        }
+        printf("  ");
+    }
+}
+
+
 template<class G>
 string get_line(int __C, int __W) {
-    int __z;
+    int __z = 12;
     
     if constexpr(is_same<G, int>::value) {
         __z = 6;
-    }
-    else {
-        __z = 12;
     }
     
     string ret = "";
@@ -267,47 +274,63 @@ string get_line(int __C, int __W) {
     return ret +"\n";
 }
 
-template<class T> std::string Tensor4D<T>::to_string() {
-    string ret = _shape.to_string() + "\n";
+template<>
+string get_line<int>(int __C, int __W) {
+    int __z = 6;
+    
+    string ret = "";
+    for(int c = 0; c < __C; c++) {
+        ret += "-";
+        for(int w = 0; w < __W; w++) {
+            for(int z = 0; z < __z; z++) {
+                ret += "-";
+            }
+        }
+        ret += "  ";
+    }
+    return ret +"\n";
+}
 
+template<class T> std::string Tensor4D<T>::to_string() {
+    stringstream _retss;
+
+    _retss << _shape.to_string() << endl;
     this->update_self_acc();
 
     int B = _shape[0], C = _shape[1], H = _shape[2], W = _shape[3];
     
-    auto format = "Size: %d x %d x %d x %d = %d\n";
-    auto size = snprintf(nullptr, 0, format ,B, C, H, W, _shape.size());
-    string temp(size+1, '\0');
-    sprintf(&temp[0], format , B, C, H, W, _shape.size());
-    ret += temp;
+    _retss << "Size: " << B << " x " << C << " x " << H << " x " << W << endl;
 
+    T el;
     for(int b = 0; b < B; b++) {
-        ret += get_line<T>(C, W);
-
+        _retss << get_line<T>(C, W);
         for(int h = 0; h < H; h++) {
             for(int c = 0; c < C; c++) {
-                ret+= "|";
+                _retss << "|";
                 for(int w = 0; w < W; w++) {
-                    const char * format2;
-                    if constexpr(is_same<T, int>::value) {
-                        format2 = "%5d|";
+                    el = _data[ ( (b* C + c)* H +  h) * W + w];
+
+                    if constexpr(is_same<int, T>::value) {
+                        char format2[10];
+                        int size2 = snprintf(format2, 10, "%05d|", el);
+                        _retss << format2;
                     }
                     else {
-                        format2 = "%+011.5f|";
+                        char format2[20];
+                        int size2 = snprintf(format2, 20, "%+011.5f|", el);
+                        _retss << format2;
                     }
-                    int size2 = snprintf(nullptr, 0, format2, _data[ ( (b* C + c)* H +  h) * W + w]);
-                    string temp2(size2+1, '\0');
-                    sprintf(&temp2[0], format2, _data[ ( (b* C + c)* H +  h) * W + w]);
-                    ret += temp2;
+
                 }
-                ret += "  ";
+                _retss << "  ";
             }
-            ret += "\n";
+            _retss << endl;
         }
-        ret += get_line<T>(C, W);
-        ret += "\n";
+        _retss << get_line<T>(C, W);
+        _retss << endl;
     }
-    ret += "\n";
-    return ret;
+    _retss << endl;
+    return _retss.str();
 }
 
 template<class T> void Tensor4D<T>::print() {
