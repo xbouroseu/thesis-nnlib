@@ -199,8 +199,13 @@ template<class T> void Tensor4D<T>::delete_acc() {
 }
 
 template<class T> bool Tensor4D<T>::is_present_acc() const {
-    LOGV << "Tensor4D::is_present_acc!";
+    LOGV << "Tensor4D::is_present_acc const!";
     // return Neural::is_present(this->data(), this->size() * sizeof(T));
+    return ::acc_is_present(_data, this->size() * sizeof(T) );
+}
+
+template<class T> bool Tensor4D<T>::is_present_acc() {
+    LOGV << "Tensor4D::is_present_acc!";
     return ::acc_is_present(_data, this->size() * sizeof(T) );
 }
 
