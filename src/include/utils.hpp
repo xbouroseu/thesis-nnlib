@@ -6,7 +6,7 @@
 #define _LLOG(_lvl, _what) _LLOG_A(_lvl, _what, #_what)
 
 // execute and log action outputs: action_title, execution_time
-#define _LOGXPC(_loglvl, _action_title, _action_cmd) IF_PLOG(plog::_loglvl) { PLOGN << _action_title; clock_t op_start = std::clock(); } _action_cmd; PLOG(plog::_loglvl) << "Execution time: " << _action_title << " = " <<  std::setprecision(15) << std::fixed << dur(op_start)
+#define _LOGXPC(_loglvl, _action_title, _action_cmd, __op_start) IF_PLOG(plog::_loglvl) { PLOGN << _action_title; __op_start = std::clock(); } _action_cmd; PLOG(plog::_loglvl) << "Execution time: " << _action_title << " = " <<  std::setprecision(15) << std::fixed << dur(__op_start)
 
 #ifdef _OPENACC
 constexpr int IS_OPENACC = 1;
