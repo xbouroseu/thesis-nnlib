@@ -1,0 +1,4 @@
+trained/
+lib/*
+*.d
+*.d.*
